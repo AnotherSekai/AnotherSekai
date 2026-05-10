@@ -20,7 +20,7 @@ const groups = [
   { id: "school_refusal", label: "Nightcord at 25:00" },
 ];
 
-#ts-ignore
+// @ts-ignore
 const selectedGroupId = ref(groups[0].id);
 
 interface SekaiCharacter {
