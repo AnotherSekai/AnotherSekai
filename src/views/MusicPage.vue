@@ -14,7 +14,7 @@ import {
   Pause,
   Cross,
 } from "lucide-vue-next";
-import { ref, shallowRef, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useVirtualGrid } from "@/composables/useVirtualGrid";
 import axios from "axios";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
@@ -70,9 +70,24 @@ interface SekaiMusicDifficulty {
 }
 
 const isLoading = ref(true);
-const allMusicList = shallowRef<UIMusicNode[]>([]);
-const musicList = shallowRef<UIMusicNode[]>([]);
+const allMusicList = ref<UIMusicNode[]>([]);
 const selectedMusic = ref<UIMusicNode | null>(null);
+const searchQuery = ref("");
+const isListView = ref(false);
+
+const musicList = computed(() => {
+  let filtered = allMusicList.value;
+  if (selectedBand.value !== "all") {
+    filtered = filtered.filter((m) => m.tags.includes(selectedBand.value));
+  }
+  if (searchQuery.value && searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase();
+    filtered = filtered.filter(
+      (m) => m.title.toLowerCase().includes(q) || m.artist.toLowerCase().includes(q),
+    );
+  }
+  return filtered;
+});
 
 const difficultyOptions = [
   {
@@ -143,17 +158,13 @@ const getBadgeDiffConfig = (diffId: string) => {
   return difficultyOptions.find((d) => d.id === diffId) || difficultyOptions[2]; // default to hard if not found
 };
 
-watch(
-  [selectedBand, allMusicList],
-  ([band, list]) => {
-    if (band === "all") {
-      musicList.value = list;
-    } else {
-      musicList.value = list.filter((m) => m.tags.includes(band));
+watch(isListView, () => {
+  nextTick(() => {
+    if (gridContainer.value) {
+      gridContainer.value.scrollTop = 0;
     }
-  },
-  { immediate: true },
-);
+  });
+});
 
 // Virtual Grid Setup
 const gridContainer = ref<HTMLElement | null>(null);
@@ -292,6 +303,7 @@ onUnmounted(() => {
         <!-- Search Bar -->
         <div class="relative flex-1 max-w-md">
           <input
+            v-model="searchQuery"
             type="text"
             placeholder="Search by song title or artist"
             class="w-full bg-white/90 backdrop-blur-sm rounded-full py-1.5 pl-4 pr-10 text-gray-800 text-sm font-semibold placeholder:text-gray-500 outline-none shadow-md border border-white/20"
@@ -302,9 +314,10 @@ onUnmounted(() => {
         <!-- List Toggle -->
         <button
           class="bg-white/90 backdrop-blur-sm rounded-full flex items-center gap-2 px-3 py-1.5 shadow-md hover:bg-white transition-colors text-gray-800 border border-white/20"
+          @click="isListView = !isListView"
         >
           <List class="h-4 w-4 text-indigo-500" />
-          <span class="text-xs font-bold pr-1">List</span>
+          <span class="text-xs font-bold pr-1">{{ isListView ? 'List' : 'Grid' }}</span>
         </button>
 
         <div class="flex-1" />
@@ -356,14 +369,14 @@ onUnmounted(() => {
 
       <!-- MAIN CONTENT AREA (Left Grid, Right Panel) -->
       <div class="flex-1 flex gap-4 h-full pl-4 pr-6 py-4 min-h-0">
-        <!-- LEFT: Waterfall Music Grid -->
+        <!-- LEFT: Music Grid / List -->
         <div ref="gridContainer" class="flex-[3] overflow-y-auto pr-2 custom-scrollbar relative">
           <div v-if="isLoading" class="flex items-center justify-center h-full">
             <span class="text-white/60 font-bold animate-pulse">Loading music...</span>
           </div>
-          <!-- Virtualized grid container -->
-          <div v-else class="relative w-full" :style="{ height: `${totalHeight}px` }">
-            <!-- Render only visible items -->
+
+          <!-- GRID VIEW -->
+          <div v-else-if="!isListView" class="relative w-full" :style="{ height: `${totalHeight}px` }">
             <div
               class="absolute top-0 left-0 right-0 grid grid-cols-4 gap-3 p-2 pb-20 will-change-transform"
               :style="{ transform: `translateY(${offsetY}px)` }"
@@ -380,22 +393,16 @@ onUnmounted(() => {
                 @click="selectedMusic = item"
                 data-virtual-item
               >
-                <!-- Clip inner contents but not the focus ring -->
                 <div
                   class="relative w-full h-full rounded-lg overflow-hidden pb-[100%] bg-black/10"
                 >
-                  <!-- Album Cover -->
                   <LazyImage
                     :src="item.cover"
                     class="absolute inset-0 w-full h-full object-cover rounded-lg block"
                   />
-
-                  <!-- Gradient overlay at bottom -->
                   <div
                     class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"
                   />
-
-                  <!-- Level Badge (Top Left) -->
                   <div
                     class="absolute top-0 left-0 font-black text-sm px-1.5 py-0.5 rounded-br-lg shadow-sm"
                     :class="[
@@ -408,6 +415,43 @@ onUnmounted(() => {
                 </div>
               </button>
             </div>
+          </div>
+
+          <!-- LIST VIEW -->
+          <div v-else class="flex flex-col gap-1 p-2 pb-20">
+            <button
+              v-for="item in musicList"
+              :key="item.id"
+              class="flex items-center gap-3 px-3 py-2 rounded-xl transition-all outline-none"
+              :class="
+                selectedMusic?.id === item.id
+                  ? 'bg-white/25 ring-2 ring-white/40'
+                  : 'bg-white/5 hover:bg-white/15'
+              "
+              @click="selectedMusic = item"
+            >
+              <!-- Thumbnail -->
+              <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                <LazyImage :src="item.cover" class="w-full h-full object-cover block" />
+              </div>
+              <!-- Title & Artist -->
+              <div class="flex-1 min-w-0 text-left">
+                <p class="text-sm font-bold text-white truncate">{{ item.title }}</p>
+                <p class="text-xs text-white/60 truncate">{{ item.artist }}</p>
+              </div>
+              <!-- Difficulty pills -->
+              <div class="flex items-center gap-1 flex-shrink-0">
+                <span
+                  v-for="diff in difficultyOptions"
+                  :key="diff.id"
+                  v-show="item.difficulties[diff.id] !== undefined"
+                  class="text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[24px] text-center"
+                  :class="[diff.badgeBgColor, diff.badgeTextColor]"
+                >
+                  {{ item.difficulties[diff.id] }}
+                </span>
+              </div>
+            </button>
           </div>
         </div>
 

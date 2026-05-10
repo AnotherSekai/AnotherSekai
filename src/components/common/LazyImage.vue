@@ -39,21 +39,32 @@ onUnmounted(() => {
 
 <template>
   <div class="lazy-image-wrapper" :class="props.class">
-    <div v-if="!isLoaded" class="lazy-image-placeholder" />
-    <img
-      ref="imageRef"
-      :src="isVisible ? props.src : undefined"
-      :alt="props.alt ?? ''"
-      class="lazy-image"
-      :class="{ 'lazy-image--loaded': isLoaded }"
-      @load="isLoaded = true"
-    />
+    <div class="lazy-image-inner">
+      <div v-if="!isLoaded" class="lazy-image-placeholder" />
+      <img
+        ref="imageRef"
+        :src="isVisible ? props.src : undefined"
+        :alt="props.alt ?? ''"
+        class="lazy-image"
+        :class="{ 'lazy-image--loaded': isLoaded }"
+        @load="isLoaded = true"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .lazy-image-wrapper {
   overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.lazy-image-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .lazy-image-placeholder {
@@ -82,7 +93,7 @@ onUnmounted(() => {
 .lazy-image {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   object-fit: cover;
   border-radius: inherit;
   opacity: 0;
