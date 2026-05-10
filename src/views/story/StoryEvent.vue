@@ -5,6 +5,8 @@ import { getRegion } from "@/utils/cookie";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import CommonButton from "@/components/common/CommonButton.vue";
 import StoryEventDetailDialog from "@/components/features/story/StoryEventDetailDialog.vue";
+import LazyImage from "@/components/common/LazyImage.vue";
+
 
 interface EventStory {
   id: number;
@@ -99,7 +101,7 @@ onMounted(async () => {
             v-for="(event, index) in events"
             :key="event.id"
             @click="selectedIndex = index"
-            class="relative aspect-[21/9] shrink-0 rounded-2xl overflow-hidden shadow-md border-[3px] transition-all duration-300 outline-none group"
+            class="relative aspect-[21/9] shrink-0 rounded-xl overflow-hidden shadow-md border-[4px] transition-all duration-300 outline-none group"
             :class="
               selectedIndex === index
                 ? 'border-pink-400 scale-[1.03] w-[260px]'
@@ -107,7 +109,7 @@ onMounted(async () => {
             "
           >
             <!-- Banner image -->
-            <img
+            <LazyImage
               :src="getBannerUrl(event)"
               class="absolute inset-0 w-full h-full object-cover"
               loading="lazy"
@@ -153,7 +155,7 @@ onMounted(async () => {
             <img
               v-if="selectedEvent"
               :src="getLogoUrl(selectedEvent)"
-              class="h-[220px] object-contain max-w-[600px]"
+              class="h-[140px] lg:h-[200px] object-contain max-w-[600px]"
             />
           </div>
 
