@@ -1,14 +1,5 @@
 export default async function handler(req, res) {
-  const pathParam = req.query.path;
-  console.log(req)
-  // normalize to array safely
-  const pathArray = Array.isArray(pathParam)
-    ? pathParam
-    : typeof pathParam === "string"
-      ? [pathParam]
-      : [];
-
-  const path = pathArray.join("/");
+  const pathParam = req.query.path["...path"];
 
   const url = `https://storage.sekai.best/${path}`;
 
