@@ -1,3 +1,3 @@
 export default async function handler(req, res) {
-   return "LOL SUCCESS"
+  res.status(200).send("LOL SUCCESS");
 }
