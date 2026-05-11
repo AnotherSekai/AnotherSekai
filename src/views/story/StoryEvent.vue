@@ -186,7 +186,6 @@ onMounted(async () => {
 
 <style scoped>
 .custom-scrollbar {
-  scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 
   /* subtle gray depth behind everything */
