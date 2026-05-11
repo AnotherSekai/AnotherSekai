@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   const pathParam = req.query.path;
-  res.status("200").send(req)
+  console.log(req)
   // normalize to array safely
   const pathArray = Array.isArray(pathParam)
     ? pathParam
