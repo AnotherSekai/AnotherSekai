@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  const pathParam = req.query.path;
+  const path = req.query.path;
 
   const url = `https://sekai-world.github.io/${path}`;
 
