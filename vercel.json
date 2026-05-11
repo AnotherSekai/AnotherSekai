@@ -5,7 +5,7 @@
       "destination": "/api/sekai-world/:path*"
     },
     {
-      "source": "/storage/(.*)",
+      "source": "/api/storage/(.*)",
       "destination": "/api/storage/index.js"
     },
     {
