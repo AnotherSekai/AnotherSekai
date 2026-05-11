@@ -566,6 +566,7 @@ onUnmounted(() => {
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+  border-radius: 20px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.3);
