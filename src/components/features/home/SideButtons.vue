@@ -77,7 +77,7 @@ const selectModel = (model: ModelEntry) => {
 
         <Dialog v-model:open="isDialogOpen">
           <DialogTrigger as-child>
-            <button class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-white hover:bg-white/35 shadow-lg flex items-center justify-center transition-colors">
+            <button class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-black/35 shadow-lg flex items-center justify-center transition-colors">
               <User class="h-5 w-5" />
             </button>
           </DialogTrigger>
