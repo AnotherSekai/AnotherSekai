@@ -186,7 +186,7 @@ onMounted(async () => {
 
 <style scoped>
 .custom-scrollbar {
-  scrollbar-color: rgba(255,255,255,0.4) red;
+  scrollbar-color: transparrent;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
