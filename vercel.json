@@ -1,5 +1,9 @@
 {
   "rewrites": [
+     {
+      "source": "/storage/(.*)",
+      "destination": "/api/storage/?patdh=$1"
+    },
     {
       "source": "/storage/(.*)",
       "destination": "/api/storage/?path=$1"
