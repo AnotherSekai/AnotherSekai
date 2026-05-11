@@ -185,11 +185,14 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.custom-scrollbar {
+  scrollbar-color: rgba(255,255,255,0.4) red;
+}
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background-color: red;
+  background-color: transparrent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.4);
