@@ -15,7 +15,7 @@
     },
     
     {
-      "source": "/api/storage/(.*)",
+      "source": "/api/sekai-world/(.*)",
       "destination": "/api/sekai-world/?path=$1"
     }
   ]
