@@ -1,7 +1,7 @@
 {
   "rewrites": [
      {
-      "source": "/storage/(.*)",
+      "source": "/storage/sekai-jp-assets/(.*)",
       "destination": "/api/storage/?patdh=$1"
     },
     {
