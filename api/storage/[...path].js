@@ -1,5 +1,14 @@
 export default async function handler(req, res) {
-  const path = req.query.path.join("/");
+  const pathParam = req.query.path;
+
+  // normalize to array safely
+  const pathArray = Array.isArray(pathParam)
+    ? pathParam
+    : typeof pathParam === "string"
+      ? [pathParam]
+      : [];
+
+  const path = pathArray.join("/");
 
   const url = `https://storage.sekai.best/${path}`;
 
@@ -11,6 +20,10 @@ export default async function handler(req, res) {
 
   const data = await response.arrayBuffer();
 
-  res.setHeader("Content-Type", response.headers.get("content-type") || "");
+  res.setHeader(
+    "Content-Type",
+    response.headers.get("content-type") || ""
+  );
+
   res.status(response.status).send(Buffer.from(data));
 }
