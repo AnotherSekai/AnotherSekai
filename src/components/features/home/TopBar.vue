@@ -29,8 +29,8 @@ const emit = defineEmits<{
 }>();
 
 const rank = ref(Number(getCookie("sekai-user-rank", "1")));
-const crystal = ref(Number(getCookie("sekai-user-crystal", "-10000")));
-const energy = ref(Number(getCookie("sekai-user-energy", "50/20")));
+const crystal = ref(Number(getCookie("sekai-user-crystal", "0")));
+const energy = ref(String(getCookie("sekai-user-energy", "50/20")));
 const isModifyOpen = ref(false);
 
 const saveData = () => {
