@@ -6,7 +6,7 @@
     },
     {
       "source": "/api/storage/(.*)",
-      "destination": "/api/storage/?=$1"
+      "destination": "/api/storage/?path=$1"
     },
     {
       "source": "/storage/(.*)",
