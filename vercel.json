@@ -6,7 +6,7 @@
     },
     {
       "source": "/api/storage/:path*",
-      "destination": "/api/storage/index/:path*"
+      "destination": "/api/storage/:path*"
     },
     {
       "source": "/storage/:path*",
