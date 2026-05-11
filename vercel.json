@@ -5,12 +5,12 @@
       "destination": "/api/sekai-world/:path*"
     },
     {
-      "source": "/api/storage/:path*",
-      "destination": "/api/storage/:path*"
+      "source": "/api/storage/(.*)",
+      "destination": "/api/storage/$1"
     },
     {
-      "source": "/storage/:path*",
-      "destination": "/api/storage/:path*"
+      "source": "/storage/(.*)",
+      "destination": "/api/storage/$1"
     }
   ]
 }
