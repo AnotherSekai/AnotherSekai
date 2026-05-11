@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/sekai-world/:path*",
+      "destination": "/api/sekai-world/:path*"
+    },
+    {
+      "source": "/storage/:path*",
+      "destination": "/api/storage/:path*"
+    }
+  ]
+}
