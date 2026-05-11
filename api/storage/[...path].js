@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  const pathParam = req.query.path;
+  const pathParam = req.query;
   console.log(pathParam)
 
   const url = `https://storage.sekai.best/${path}`;
