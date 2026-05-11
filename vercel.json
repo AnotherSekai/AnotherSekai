@@ -12,6 +12,6 @@
     {
       "source": "/api/storage/(.*)",
       "destination": "/api/storage/?path=$1"
-    },
+    }
   ]
 }
