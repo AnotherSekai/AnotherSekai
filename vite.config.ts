@@ -28,6 +28,10 @@ export default defineConfig({
           referer: "https://storage.sekai.best/",
         },
       },
+      "/api": {
+        target: "http://localhost:9000",
+        changeOrigin: true,
+      },
     },
   },
 });
