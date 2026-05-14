@@ -7,7 +7,7 @@ const props = defineProps<{
   useMask?: boolean;
 }>();
 
-const globalBg = getCookie("sekai-bg", "");
+const globalBg = getCookie("sekai-bg", "bg_a000005");
 const finalBackgroundImage = computed(() => {
   if (props.backgroundImage) {
     return props.backgroundImage

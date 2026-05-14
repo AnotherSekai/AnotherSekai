@@ -42,7 +42,7 @@ function switchRegion(r: Region) {
 }
 
 const backgrounds = Array.from({ length: 99 }, (_, i) => `bg_a${String(i + 1).padStart(6, "0")}`);
-const currentBg = ref(getCookie("sekai-bg", "") || "");
+const currentBg = ref(getCookie("sekai-bg", "bg_a000005"));
 
 const cookiesList = ref<{ key: string; value: string }[]>([]);
 const updateCookies = () => {
