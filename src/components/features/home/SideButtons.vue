@@ -12,6 +12,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+import CommonButton from "@/components/common/CommonButton.vue";
+
 
 const isSilent = ref(getCookie("sekai-bgm-silent", "false") === "true");
 
@@ -64,22 +66,21 @@ const selectModel = (model: ModelEntry) => {
 <template>
   <div class="absolute right-2.5 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2.5">
     <!-- Music Toggler -->
-    <button
-      class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-white/35 shadow-lg flex items-center justify-center transition-colors"
-      @click="toggleBgm"
-    >
-      <VolumeX v-if="isSilent" class="h-5 w-5" />
-      <Volume2 v-else class="h-5 w-5" />
-    </button>
+  <CommonButton type="icon" @click="toggleBgm">
+    <VolumeX v-if="isSilent" class="h-5 w-5" />
+    <Volume2 v-else class="h-5 w-5" />
+  </CommonButton>
+
+          
 
     <!-- Gift button -->
     
 
         <Dialog v-model:open="isDialogOpen">
           <DialogTrigger as-child>
-            <button class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-black/35 shadow-lg flex items-center justify-center transition-colors">
+            <CommonButton type="icon">
               <User class="h-5 w-5" />
-            </button>
+            </CommonButton>
           </DialogTrigger>
           <DialogContent class="z-[200] max-w-lg max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
             <DialogHeader class="px-6 pt-6 pb-2 shrink-0">
@@ -121,10 +122,8 @@ const selectModel = (model: ModelEntry) => {
           </DialogContent>
         </Dialog>
     <!-- List button -->
-    <button
-      class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-black/35 shadow-lg flex items-center justify-center transition-colors"
-    >
+    <CommonButton type="icon">
       <ListOrdered class="h-5 w-5" />
-    </button>
+    </CommonButton>
   </div>
 </template>
