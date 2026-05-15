@@ -185,11 +185,25 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.custom-scrollbar {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+  /* subtle gray depth behind everything */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(0, 0, 0, 0.08)
+  );
+}
+  
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background-color: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.4);

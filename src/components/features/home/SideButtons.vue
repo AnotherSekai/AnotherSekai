@@ -65,7 +65,7 @@ const selectModel = (model: ModelEntry) => {
   <div class="absolute right-2.5 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2.5">
     <!-- Music Toggler -->
     <button
-      class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-white hover:bg-white/35 shadow-lg flex items-center justify-center transition-colors"
+      class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-white/35 shadow-lg flex items-center justify-center transition-colors"
       @click="toggleBgm"
     >
       <VolumeX v-if="isSilent" class="h-5 w-5" />
@@ -77,7 +77,7 @@ const selectModel = (model: ModelEntry) => {
 
         <Dialog v-model:open="isDialogOpen">
           <DialogTrigger as-child>
-            <button class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-white hover:bg-white/35 shadow-lg flex items-center justify-center transition-colors">
+            <button class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-black/35 shadow-lg flex items-center justify-center transition-colors">
               <User class="h-5 w-5" />
             </button>
           </DialogTrigger>
@@ -122,7 +122,7 @@ const selectModel = (model: ModelEntry) => {
         </Dialog>
     <!-- List button -->
     <button
-      class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-white hover:bg-white/35 shadow-lg flex items-center justify-center transition-colors"
+      class="h-10 w-10 rounded-full bg-white/25 backdrop-blur-md text-black hover:bg-black/35 shadow-lg flex items-center justify-center transition-colors"
     >
       <ListOrdered class="h-5 w-5" />
     </button>

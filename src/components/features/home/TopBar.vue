@@ -29,14 +29,14 @@ const emit = defineEmits<{
 }>();
 
 const rank = ref(Number(getCookie("sekai-user-rank", "1")));
-const crystal = ref(Number(getCookie("sekai-user-crystal", "-10000")));
-const energy = ref(Number(getCookie("sekai-user-energy", "50/20")));
+const crystal = ref(Number(getCookie("sekai-user-crystal", "0")));
+const energy = ref(String(getCookie("sekai-user-energy", "50/20")));
 const isModifyOpen = ref(false);
 
 const saveData = () => {
-  setCookie("sekai-rank", String(rank.value));
-  setCookie("sekai-crystal", String(crystal.value));
-  setCookie("sekai-energy", String(energy.value));
+  setCookie("sekai-user-rank", String(rank.value));
+  setCookie("sekai-user-crystal", String(crystal.value));
+  setCookie("sekai-user-energy", String(energy.value));
   isModifyOpen.value = false;
 };
 </script>
