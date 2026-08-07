@@ -1,11 +1,12 @@
 <!-- Layout with live2d -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import * as PIXI from "pixi.js";
 import { Live2DModel, MotionPreloadStrategy } from "@sekai-world/pixi-live2d-display-mulmotion";
 import SubpageHeader from "./SubpageHeader.vue";
 import BackgroundLayer from "../common/BackgroundLayer.vue";
-import { getCookie, setCookie } from "../../utils/cookie";
+import { useLive2DSelection, type Live2DSelection } from "@/composables/useLive2DSelection";
+import { loadLive2DModelData } from "@/utils/live2d";
 
 declare global {
   interface Window {
@@ -22,100 +23,109 @@ const live2dContainer = ref<HTMLElement | null>(null);
 let app: PIXI.Application | null = null;
 let model: Live2DModel | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let loadRequestId = 0;
+let isUnmounted = false;
 
-const LIVE2D_ASSET_BASE_URL = "/storage/sekai-live2d-assets/live2d/model";
-const DEFAULT_MODEL_PATH = "v2/main/21_miku/v2_21miku_night";
-const DEFAULT_MODEL_FILE = "v2_21miku_night_t01.model3.json";
+const { selection } = useLive2DSelection();
 
-const savedModelPath = getCookie("sekai-live2d-model-path", "");
-const savedModelFile = getCookie("sekai-live2d-model-file", "");
-const modelPath = savedModelPath || DEFAULT_MODEL_PATH;
-const modelFile = savedModelFile || DEFAULT_MODEL_FILE;
+function updateLive2DLayout() {
+  if (!live2dContainer.value || !model) return;
+  const width = live2dContainer.value.clientWidth;
 
-onMounted(async () => {
-  if (live2dContainer.value) {
-    const modelUrl = `${LIVE2D_ASSET_BASE_URL}/${modelPath}/${modelFile}`;
-    const modelBaseUrl = `${LIVE2D_ASSET_BASE_URL}/${modelPath}/`;
-    // Random
-    // try {
-    //   const res = await axios.get<ModelList[]>(
-    //     `/storage/sekai-live2d-assets/live2d/model_list.json`,
-    //   );
-    //   if (res.data && res.data.length > 0) {
-    //     const randomModel = res.data[Math.floor(Math.random() * res.data.length)];
-    //     if (randomModel && randomModel.modelPath && randomModel.modelFile) {
-    //       finalPath = randomModel.modelPath + "/" + randomModel.modelFile;
-    //     }
-    //   }
-    // } catch (err) {
-    //   console.error("Failed to fetch model list, using fallback.", err);
-    // }
-    // selectedModelPath.value = finalPath;
+  let baseScale = 0.26;
+  let baseX = -160;
 
-    app = new PIXI.Application({
-      view: document.createElement("canvas"),
-      resizeTo: live2dContainer.value,
-      backgroundAlpha: 0,
-    });
-    live2dContainer.value.appendChild(app.view as HTMLCanvasElement);
+  if (width > 600) {
+    const extraWidth = width - 600;
+    baseScale = 0.26 + extraWidth * 0.0002;
+    baseX = -160 + extraWidth * 0.5;
+  }
 
-    const rawRes = await fetch(modelUrl);
-    if (!rawRes.ok) {
-      throw new Error(`Failed to load Live2D model: ${rawRes.status} ${rawRes.statusText}`);
-    }
-    const modelJson = await rawRes.json();
+  model.scale.set(baseScale);
+  model.x = baseX;
+  model.y = -160;
+}
 
-    // The upstream viewer uses the model directory as the base URL so every
-    // relative moc, texture, physics, and pose path resolves correctly.
-    modelJson.url = modelBaseUrl;
+async function replaceLive2DModel(nextSelection: Live2DSelection) {
+  if (!app) return;
+  const requestId = ++loadRequestId;
 
-    model = await Live2DModel.from(modelJson, {
+  try {
+    const { data, options } = await loadLive2DModelData(nextSelection);
+    const nextModel = await Live2DModel.from(data, {
       autoInteract: false,
       motionPreload: MotionPreloadStrategy.NONE,
     });
 
-    if (model && app) {
-      app.stage.addChild(model);
+    if (isUnmounted || requestId !== loadRequestId || !app) {
+      nextModel.destroy();
+      return;
+    }
 
-      const updateLive2dLayout = () => {
-        if (!live2dContainer.value || !model) return;
-        const width = live2dContainer.value.clientWidth;
+    const previousModel = model;
+    model = nextModel;
+    app.stage.addChild(nextModel);
+    updateLive2DLayout();
 
-        // Base scale and position
-        let baseScale = 0.26;
-        let baseX = -160;
+    if (previousModel) {
+      app.stage.removeChild(previousModel);
+      previousModel.destroy();
+    }
 
-        if (width > 600) {
-          const extraWidth = width - 600;
-          baseScale = 0.26 + extraWidth * 0.0002;
-          baseX = -160 + extraWidth * 0.5;
-        }
+    const motionIndex = options.motions.findIndex(
+      (motion) => motion.Name === nextSelection.motion,
+    );
+    const expressionIndex = options.expressions.findIndex(
+      (expression) => expression.Name === nextSelection.expression,
+    );
 
-        model.scale.set(baseScale);
-        model.x = baseX;
-        model.y = -160;
-      };
-
-      resizeObserver = new ResizeObserver(() => {
-        updateLive2dLayout();
-      });
-      resizeObserver.observe(live2dContainer.value);
-      updateLive2dLayout();
-
+    const actions: Promise<boolean>[] = [];
+    if (motionIndex >= 0) actions.push(nextModel.motion("Motion", motionIndex));
+    if (expressionIndex >= 0) actions.push(nextModel.motion("Expression", expressionIndex));
+    void Promise.all(actions).catch((error) => {
+      console.error(`Failed to apply Live2D motion for ${nextSelection.modelName}`, error);
+    });
+  } catch (error) {
+    if (requestId === loadRequestId) {
+      console.error(`Failed to load Live2D model ${nextSelection.modelName}`, error);
     }
   }
+}
+
+watch(
+  selection,
+  (nextSelection) => {
+    void replaceLive2DModel({ ...nextSelection });
+  },
+  { deep: true },
+);
+
+onMounted(() => {
+  if (!live2dContainer.value) return;
+
+  app = new PIXI.Application({
+    view: document.createElement("canvas"),
+    resizeTo: live2dContainer.value,
+    backgroundAlpha: 0,
+  });
+  live2dContainer.value.appendChild(app.view as HTMLCanvasElement);
+
+  resizeObserver = new ResizeObserver(updateLive2DLayout);
+  resizeObserver.observe(live2dContainer.value);
+  void replaceLive2DModel({ ...selection.value });
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
+  loadRequestId += 1;
   if (resizeObserver) {
     resizeObserver.disconnect();
-  }
-  if (model) {
-    model.destroy();
   }
   if (app) {
     app.destroy(true, { children: true });
   }
+  model = null;
+  app = null;
 });
 </script>
 
