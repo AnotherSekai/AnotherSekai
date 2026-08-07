@@ -7,7 +7,10 @@
       "last 10 versions"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "run-p dev:*",
+    "dev:api": "bun --watch server/index.ts",
+    "dev:web": "vite",
+    "start:api": "bun server/index.ts",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",

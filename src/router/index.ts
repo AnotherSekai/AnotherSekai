@@ -50,7 +50,12 @@ const router = createRouter({
       path: "/mysekai",
       name: "mysekai",
       component: () => import("../views/MySekaiPage.vue"),
-    }
+    },
+    {
+      path: "/gacha",
+      name: "gacha",
+      component: () => import("../views/GachaPage.vue"),
+    },
   ],
 });
 
