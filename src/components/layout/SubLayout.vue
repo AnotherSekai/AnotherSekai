@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import * as PIXI from "pixi.js";
-import { Live2DModel, MotionPreloadStrategy } from "pixi-live2d-display";
+import { Live2DModel, MotionPreloadStrategy } from "@sekai-world/pixi-live2d-display-mulmotion";
 import SubpageHeader from "./SubpageHeader.vue";
 import BackgroundLayer from "../common/BackgroundLayer.vue";
 import { getCookie, setCookie } from "../../utils/cookie";
@@ -23,12 +23,19 @@ let app: PIXI.Application | null = null;
 let model: Live2DModel | null = null;
 let resizeObserver: ResizeObserver | null = null;
 
-const DEFAULT_MODEL = "v2/main/21_miku/v2_21miku_night/v2_21miku_night_t01.model3.json";
-const modelPath = ref(getCookie("sekai-live2d-model-path", "")+"/"+getCookie("sekai-live2d-model-file", "")) || DEFAULT_MODEL;
+const LIVE2D_ASSET_BASE_URL = "/storage/sekai-live2d-assets/live2d/model";
+const DEFAULT_MODEL_PATH = "v2/main/21_miku/v2_21miku_night";
+const DEFAULT_MODEL_FILE = "v2_21miku_night_t01.model3.json";
+
+const savedModelPath = getCookie("sekai-live2d-model-path", "");
+const savedModelFile = getCookie("sekai-live2d-model-file", "");
+const modelPath = savedModelPath || DEFAULT_MODEL_PATH;
+const modelFile = savedModelFile || DEFAULT_MODEL_FILE;
 
 onMounted(async () => {
   if (live2dContainer.value) {
-    const finalPath = modelPath.value;
+    const modelUrl = `${LIVE2D_ASSET_BASE_URL}/${modelPath}/${modelFile}`;
+    const modelBaseUrl = `${LIVE2D_ASSET_BASE_URL}/${modelPath}/`;
     // Random
     // try {
     //   const res = await axios.get<ModelList[]>(
@@ -52,35 +59,19 @@ onMounted(async () => {
     });
     live2dContainer.value.appendChild(app.view as HTMLCanvasElement);
 
-    const modelUrl = `/storage/sekai-live2d-assets/live2d/model/${finalPath}`;
-    console.log(modelUrl);
-
-    // Fetch and dynamically inject motions since they aren't in the default base model json
     const rawRes = await fetch(modelUrl);
+    if (!rawRes.ok) {
+      throw new Error(`Failed to load Live2D model: ${rawRes.status} ${rawRes.statusText}`);
+    }
     const modelJson = await rawRes.json();
 
-    // The url field MUST be set before calling Live2DModel.from() so the library
-    // can resolve relative asset paths (textures, moc3, physics, etc.)
-    modelJson.url = modelUrl;
+    // The upstream viewer uses the model directory as the base URL so every
+    // relative moc, texture, physics, and pose path resolves correctly.
+    modelJson.url = modelBaseUrl;
 
-    modelJson.FileReferences.Motions = {
-      Tap: [
-        {
-          File: "/storage/sekai-live2d-assets/live2d/motion/v2/main/21_miku/v2_21miku_motion_base/motion/w-animal01-nod.motion3.json",
-        },
-      ],
-    };
-    modelJson.FileReferences.Expressions = [
-      {
-        Name: "smile",
-        File: "/storage/sekai-live2d-assets/live2d/motion/v1/main/01_ichika/01ichika_motion_base/facial/face_smile_04.motion3.json",
-      },
-    ];
-
-    // Initialize with autoInteract: false to fix "manager.on is not a function" in PIXI v7
     model = await Live2DModel.from(modelJson, {
       autoInteract: false,
-      motionPreload: MotionPreloadStrategy.ALL,
+      motionPreload: MotionPreloadStrategy.NONE,
     });
 
     if (model && app) {
@@ -111,15 +102,6 @@ onMounted(async () => {
       resizeObserver.observe(live2dContainer.value);
       updateLive2dLayout();
 
-      // Add simple tap interaction using PIXI v7's event system
-      model.eventMode = "static";
-      model.on("pointerdown", () => {
-        model?.expression("smile");
-        model?.motion("Tap");
-      });
-      // Optionally just force it directly
-      model?.expression("smile");
-      model?.motion("Tap");
     }
   }
 });
