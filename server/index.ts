@@ -1,4 +1,5 @@
 import { getLatestGachas, isSupportedRegion } from "./gacha";
+import { getTitleCatalog, isSupportedTitleRegion } from "./titles";
 
 const port = Number(process.env.GACHA_API_PORT || 9000);
 
@@ -39,8 +40,27 @@ Bun.serve({
       }
     }
 
+    if (request.method === "GET" && url.pathname === "/api/titles") {
+      const region = url.searchParams.get("region") ?? "jp";
+      if (!isSupportedTitleRegion(region)) {
+        return json({ error: "Unsupported region." }, { status: 400 });
+      }
+
+      try {
+        const titles = await getTitleCatalog(region);
+        return json(titles, {
+          headers: {
+            "Cache-Control": "public, max-age=600, stale-while-revalidate=3600",
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load titles:", error);
+        return json({ error: "Titles are temporarily unavailable." }, { status: 502 });
+      }
+    }
+
     return json({ error: "Not found." }, { status: 404 });
   },
 });
 
-console.log(`Gacha API listening on http://localhost:${port}`);
+console.log(`API listening on http://localhost:${port}`);
