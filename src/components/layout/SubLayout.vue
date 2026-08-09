@@ -17,6 +17,7 @@ window.PIXI = PIXI;
 
 const props = defineProps<{
   watermarkText?: string;
+  contentScrollable?: boolean;
 }>();
 
 const live2dContainer = ref<HTMLElement | null>(null);
@@ -152,7 +153,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Scrollable content -->
-        <div class="flex-1 overflow-y-auto px-4 pt-14 pb-20 relative z-10">
+        <div
+          class="flex-1 min-h-0 px-4 pt-14 pb-20 relative z-10"
+          :class="props.contentScrollable === false ? 'overflow-hidden' : 'overflow-y-auto'"
+        >
           <slot></slot>
         </div>
       </div>

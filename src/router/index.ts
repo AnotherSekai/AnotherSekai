@@ -1,7 +1,4 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import HomePage from "../views/HomePage.vue";
-import ShowPage from "../views/ShowPage.vue";
-import MusicPage from "../views/MusicPage.vue";
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -9,17 +6,22 @@ const router = createRouter({
     {
       path: "/",
       name: "home",
-      component: HomePage,
+      component: () => import("../views/HomePage.vue"),
     },
     {
       path: "/show",
       name: "show",
-      component: ShowPage,
+      component: () => import("../views/show/ShowMain.vue"),
+    },
+    {
+      path: "/show/virtual",
+      name: "show-virtual",
+      component: () => import("../views/show/ShowVirtual.vue"),
     },
     {
       path: "/music",
       name: "music",
-      component: MusicPage,
+      component: () => import("../views/MusicPage.vue"),
     },
     {
       path: "/characters",

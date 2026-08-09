@@ -1,5 +1,10 @@
 import { getLatestGachas, isSupportedRegion } from "./gacha";
 import { getTitleCatalog, isSupportedTitleRegion } from "./titles";
+import {
+  getVirtualShowDetail,
+  getVirtualShows,
+  isSupportedVirtualShowRegion,
+} from "./virtual-shows";
 
 const port = Number(process.env.GACHA_API_PORT || 9000);
 
@@ -56,6 +61,51 @@ Bun.serve({
       } catch (error) {
         console.error("Failed to load titles:", error);
         return json({ error: "Titles are temporarily unavailable." }, { status: 502 });
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/virtual-shows") {
+      const region = url.searchParams.get("region") ?? "jp";
+      const scope = url.searchParams.get("scope") === "archive" ? "archive" : "active";
+      const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+      const pageSize = Math.min(40, Math.max(1, Number(url.searchParams.get("pageSize")) || 16));
+
+      if (!isSupportedVirtualShowRegion(region)) {
+        return json({ error: "Unsupported region." }, { status: 400 });
+      }
+
+      try {
+        const shows = await getVirtualShows(region, scope, page, pageSize);
+        return json(shows, {
+          headers: {
+            "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load virtual shows:", error);
+        return json({ error: "Virtual shows are temporarily unavailable." }, { status: 502 });
+      }
+    }
+
+    const virtualShowMatch = url.pathname.match(/^\/api\/virtual-shows\/(\d+)$/);
+    if (request.method === "GET" && virtualShowMatch) {
+      const region = url.searchParams.get("region") ?? "jp";
+      if (!isSupportedVirtualShowRegion(region)) {
+        return json({ error: "Unsupported region." }, { status: 400 });
+      }
+
+      try {
+        const show = await getVirtualShowDetail(region, Number(virtualShowMatch[1]));
+        if (!show) return json({ error: "Virtual show not found." }, { status: 404 });
+
+        return json(show, {
+          headers: {
+            "Cache-Control": "public, max-age=600, stale-while-revalidate=3600",
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load virtual show details:", error);
+        return json({ error: "Virtual show details are temporarily unavailable." }, { status: 502 });
       }
     }
 

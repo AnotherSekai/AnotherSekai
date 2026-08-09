@@ -102,6 +102,7 @@ const router = useRouter();
           </div>
           <button
             class="group relative w-full flex-1 bg-gradient-to-br from-violet-400/70 via-purple-300/60 to-fuchsia-500/70 backdrop-blur-md rounded-2xl p-4 shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 overflow-hidden min-h-[140px] flex flex-col items-center justify-center gap-2 border border-white/15"
+            @click="router.push('/show/virtual')"
           >
             <div
               class="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent rounded-2xl"
