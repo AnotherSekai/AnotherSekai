@@ -11,6 +11,12 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
+Production builds also run entirely on Bun:
+
+```sh
+bun run build
+```
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).

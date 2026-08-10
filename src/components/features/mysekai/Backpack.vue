@@ -8,7 +8,7 @@ import {
   Flower2,
   Package,
   type LucideIcon,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { getCookie } from "@/utils/cookie";
 
 interface MySekaiTool {

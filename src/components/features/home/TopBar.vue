@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Globe, Music, Plus, Zap, Settings, Menu, Diamond } from "lucide-vue-next";
+import { Globe, Music, Plus, Zap, Settings, Menu, Diamond } from "@lucide/vue";
 import CommonButton from "@/components/common/CommonButton.vue";
 import { Button } from "@/components/ui/button";
 import {

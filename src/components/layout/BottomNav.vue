@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { Sparkles, Users, BookOpen, Home, Music } from "lucide-vue-next";
+import { Sparkles, Users, BookOpen, Home, Music } from "@lucide/vue";
 
 const router = useRouter();
 

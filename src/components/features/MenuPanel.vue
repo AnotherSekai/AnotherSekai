@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, Globe, Image as ImageIcon, Bug } from "lucide-vue-next";
+import { X, Globe, Image as ImageIcon, Bug } from "@lucide/vue";
 import { ref, watch } from "vue";
 import { getCookie, setCookie } from "../../utils/cookie";
 import CommonButton from "../common/CommonButton.vue";

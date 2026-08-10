@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Star, Users, Swords, Lock, Ghost, Play, Sparkles, Music } from "lucide-vue-next";
+import { Star, Users, Swords, Lock, Ghost, Play, Sparkles, Music } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import ShowLayout from "@/components/layout/SubLayout.vue";
 

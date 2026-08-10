@@ -7,7 +7,7 @@ import {
   RefreshCw,
   Sparkles,
   UsersRound,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import ShowLayout from "@/components/layout/SubLayout.vue";
 import VirtualShowDetailDialog from "@/components/features/show/VirtualShowDetailDialog.vue";
 import { getRegion } from "@/utils/cookie";

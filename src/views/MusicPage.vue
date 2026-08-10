@@ -13,7 +13,7 @@ import {
   Play,
   Pause,
   Cross,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useVirtualGrid } from "@/composables/useVirtualGrid";
 import axios from "axios";

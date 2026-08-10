@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { Pencil, Dumbbell, Shirt, Trophy, Users } from "lucide-vue-next";
+import { Pencil, Dumbbell, Shirt, Trophy, Users } from "@lucide/vue";
 import ShowLayout from "@/components/layout/SubLayout.vue";
 
 const router = useRouter();

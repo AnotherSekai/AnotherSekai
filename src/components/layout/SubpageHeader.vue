@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronLeft, MenuIcon } from "lucide-vue-next";
+import { ChevronLeft, MenuIcon } from "@lucide/vue";
 import { useRouter } from "vue-router";
 import { inject } from "vue";
 import CommonButton from "../common/CommonButton.vue";

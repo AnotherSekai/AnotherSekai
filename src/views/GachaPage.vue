@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { CalendarDays, RefreshCw, Sparkles } from "lucide-vue-next";
+import { CalendarDays, RefreshCw, Sparkles } from "@lucide/vue";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import CommonButton from "@/components/common/CommonButton.vue";
 import { getRegion } from "@/utils/cookie";

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Sparkles } from "lucide-vue-next";
+import { Sparkles } from "@lucide/vue";
 
 const activeDot = ref(0);
 const totalDots = 8;

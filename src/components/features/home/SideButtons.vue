@@ -9,7 +9,7 @@ import {
   User,
   Volume2,
   VolumeX,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { ref, watch, onMounted, computed } from "vue";
 import { useElementSize } from "@vueuse/core";
 import axios from "axios";
