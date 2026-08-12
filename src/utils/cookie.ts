@@ -1,20 +1,39 @@
 export const getCookie = (name: string, defaultVal: string): string => {
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  if (match && match[2]) return match[2];
-  return defaultVal;
+  if (typeof document === "undefined") return defaultVal;
+  const encodedName = `${encodeURIComponent(name)}=`;
+  const cookie = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(encodedName));
+  if (!cookie) return defaultVal;
+
+  try {
+    return decodeURIComponent(cookie.slice(encodedName.length));
+  } catch {
+    return defaultVal;
+  }
 };
 
-export const setCookie = (name: string, value: string, days: number = 30): void => {
-  const d = new Date();
-  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
-  const expires = "expires=" + d.toUTCString();
-  document.cookie = name + "=" + value + ";" + expires + ";path=/";
+const getExpiry = (days: number) => {
+  const safeDays = Number.isFinite(days) ? days : 30;
+  const date = new Date(Date.now() + safeDays * 86_400_000);
+  return date.toUTCString();
+};
+
+export const setCookie = (name: string, value: string, days = 30): void => {
+  if (typeof document === "undefined") return;
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${getExpiry(days)}; path=/; SameSite=Lax`;
 };
 
 export const delCookie = (name: string): void => {
-  document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  if (typeof document === "undefined") return;
+  document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 };
 
-export const getRegion = (): string => {
-  return getCookie("sekai-region", "jp");
+const regions = ["en", "jp", "cn", "tc", "kr"] as const;
+export type Region = (typeof regions)[number];
+
+export const getRegion = (): Region => {
+  const region = getCookie("sekai-region", "jp");
+  return regions.includes(region as Region) ? (region as Region) : "jp";
 };

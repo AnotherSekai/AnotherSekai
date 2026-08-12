@@ -4,10 +4,7 @@ import { CalendarDays, RefreshCw, Sparkles } from "@lucide/vue";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import CommonButton from "@/components/common/CommonButton.vue";
 import { getRegion } from "@/utils/cookie";
-import {
-  fetchLatestGachas,
-  type GachaSummary,
-} from "@/utils/gacha";
+import { fetchLatestGachas, type GachaSummary } from "@/utils/gacha";
 
 const region = getRegion();
 const gachas = ref<GachaSummary[]>([]);
@@ -19,14 +16,14 @@ const failedBannerIds = ref(new Set<number>());
 const selectedGacha = computed(() => gachas.value[selectedIndex.value] ?? null);
 const displayedBackgroundUrl = computed(() => selectedGacha.value?.backgroundUrl ?? "");
 
-const formatDate = (timestamp: number) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(timestamp);
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+const formatDate = (timestamp: number) => dateFormatter.format(timestamp);
 
 const availabilityLabel = computed(() => {
   const gacha = selectedGacha.value;
@@ -69,13 +66,19 @@ onMounted(loadGachas);
         :key="displayedBackgroundUrl || 'gacha-fallback'"
         class="absolute inset-0 bg-cover bg-center"
         :style="{
-          backgroundImage: displayedBackgroundUrl ? `url(&quot;${displayedBackgroundUrl}&quot;)` : 'none',
+          backgroundImage: displayedBackgroundUrl
+            ? `url(&quot;${displayedBackgroundUrl}&quot;)`
+            : 'none',
         }"
       ></div>
     </Transition>
 
-    <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,20,36,0.68)_0%,rgba(7,20,36,0.15)_42%,rgba(7,20,36,0.08)_72%,rgba(7,20,36,0.34)_100%)]"></div>
-    <div class="absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-[#081523]/90 via-[#081523]/38 to-transparent"></div>
+    <div
+      class="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,20,36,0.68)_0%,rgba(7,20,36,0.15)_42%,rgba(7,20,36,0.08)_72%,rgba(7,20,36,0.34)_100%)]"
+    ></div>
+    <div
+      class="absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-[#081523]/90 via-[#081523]/38 to-transparent"
+    ></div>
     <div class="gacha-dots absolute inset-0 opacity-70"></div>
 
     <SubpageHeader class="relative z-50">
@@ -90,13 +93,21 @@ onMounted(loadGachas);
       aria-label="Loading gachas"
       class="absolute inset-x-4 top-16 bottom-5 z-20 flex gap-5 sm:inset-x-6 sm:bottom-8"
     >
-      <div class="hidden w-[clamp(220px,22vw,310px)] shrink-0 rounded-2xl border border-white/20 bg-black/25 p-4 backdrop-blur-xl sm:block">
+      <div
+        class="hidden w-[clamp(220px,22vw,310px)] shrink-0 rounded-2xl border border-white/20 bg-black/25 p-4 backdrop-blur-xl sm:block"
+      >
         <div class="h-full overflow-hidden rounded-xl border-2 border-dashed border-white/20 p-3">
-          <div v-for="item in 10" :key="item" class="mb-3 aspect-[21/9] animate-pulse rounded-xl bg-white/15"></div>
+          <div
+            v-for="item in 10"
+            :key="item"
+            class="mb-3 aspect-[21/9] animate-pulse rounded-xl bg-white/15"
+          ></div>
         </div>
       </div>
       <div class="flex flex-1 items-end p-4 sm:p-10">
-        <div class="w-full max-w-xl rounded-2xl border border-white/15 bg-black/25 p-5 backdrop-blur-md">
+        <div
+          class="w-full max-w-xl rounded-2xl border border-white/15 bg-black/25 p-5 backdrop-blur-md"
+        >
           <div class="mb-4 h-20 w-2/3 animate-pulse rounded-xl bg-white/15"></div>
           <div class="h-5 w-1/2 animate-pulse rounded bg-white/10"></div>
         </div>
@@ -107,7 +118,9 @@ onMounted(loadGachas);
       v-else-if="errorMessage"
       class="absolute inset-0 z-20 flex items-center justify-center px-6"
     >
-      <div class="max-w-md rounded-2xl border border-white/20 bg-[#101b2a]/80 p-7 text-center shadow-2xl backdrop-blur-xl">
+      <div
+        class="max-w-md rounded-2xl border border-white/20 bg-[#101b2a]/80 p-7 text-center shadow-2xl backdrop-blur-xl"
+      >
         <p class="text-lg font-black">Gacha data is unavailable</p>
         <p class="mt-2 text-sm leading-6 text-white/70">{{ errorMessage }}</p>
         <CommonButton class="mx-auto mt-5 gap-2" color="teal" size="sm" @click="loadGachas">
@@ -125,8 +138,12 @@ onMounted(loadGachas);
         aria-label="Latest gachas"
         class="relative shrink-0 rounded-2xl border border-white/20 bg-[#0d1d31]/42 p-3 shadow-2xl backdrop-blur-xl sm:w-[clamp(220px,22vw,310px)] sm:p-4"
       >
-        <div class="pointer-events-none absolute inset-2 rounded-xl border-2 border-dashed border-white/20"></div>
-        <div class="relative flex gap-3 overflow-x-auto p-1 sm:h-full sm:flex-col sm:overflow-x-hidden sm:overflow-y-auto sm:p-2 gacha-scrollbar">
+        <div
+          class="pointer-events-none absolute inset-2 rounded-xl border-2 border-dashed border-white/20"
+        ></div>
+        <div
+          class="relative flex gap-3 overflow-x-auto p-1 sm:h-full sm:flex-col sm:overflow-x-hidden sm:overflow-y-auto sm:p-2 gacha-scrollbar"
+        >
           <button
             v-for="(gacha, index) in gachas"
             :key="gacha.id"
@@ -155,7 +172,9 @@ onMounted(loadGachas);
             >
               No image
             </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/5"></div>
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/5"
+            ></div>
             <span
               v-if="selectedIndex === index"
               class="absolute bottom-1.5 left-2 rounded-full bg-cyan-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-950"
@@ -166,7 +185,9 @@ onMounted(loadGachas);
         </div>
       </aside>
 
-      <article class="relative flex min-h-0 flex-1 items-end overflow-hidden rounded-2xl sm:overflow-visible">
+      <article
+        class="relative flex min-h-0 flex-1 items-end overflow-hidden rounded-2xl sm:overflow-visible"
+      >
         <Transition name="gacha-focus" mode="out-in">
           <div
             v-if="selectedGacha"
@@ -179,17 +200,30 @@ onMounted(loadGachas);
               class="mb-3 h-[clamp(82px,17vh,190px)] max-w-[min(90vw,620px)] object-contain object-left-bottom drop-shadow-[0_8px_14px_rgba(0,0,0,0.55)] sm:mb-5"
             />
 
-            <div class="inline-flex max-w-full flex-col rounded-2xl border border-white/20 bg-[#0b1727]/60 px-4 py-3 shadow-2xl backdrop-blur-md sm:px-5 sm:py-4">
-              <div class="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-                <span class="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.9)]"></span>
+            <div
+              class="inline-flex max-w-full flex-col rounded-2xl border border-white/20 bg-[#0b1727]/60 px-4 py-3 shadow-2xl backdrop-blur-md sm:px-5 sm:py-4"
+            >
+              <div
+                class="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200"
+              >
+                <span
+                  class="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.9)]"
+                ></span>
                 {{ availabilityLabel }}
               </div>
-              <h1 class="line-clamp-2 text-xl font-black leading-tight drop-shadow-md sm:text-2xl lg:text-3xl">
+              <h1
+                class="line-clamp-2 text-xl font-black leading-tight drop-shadow-md sm:text-2xl lg:text-3xl"
+              >
                 {{ selectedGacha.name }}
               </h1>
-              <div class="mt-2 flex items-center gap-2 text-xs font-semibold text-white/75 sm:text-sm">
+              <div
+                class="mt-2 flex items-center gap-2 text-xs font-semibold text-white/75 sm:text-sm"
+              >
                 <CalendarDays class="h-4 w-4 shrink-0 text-white/60" />
-                <span>{{ formatDate(selectedGacha.startAt) }} - {{ formatDate(selectedGacha.endAt) }}</span>
+                <span
+                  >{{ formatDate(selectedGacha.startAt) }} -
+                  {{ formatDate(selectedGacha.endAt) }}</span
+                >
               </div>
             </div>
           </div>
@@ -205,13 +239,19 @@ onMounted(loadGachas);
 
 <style scoped>
 .gacha-dots {
-  background-image: radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.14) 1px, transparent 0);
+  background-image: radial-gradient(
+    circle at 2px 2px,
+    rgba(255, 255, 255, 0.14) 1px,
+    transparent 0
+  );
   background-size: 16px 16px;
 }
 
 .gacha-background-enter-active,
 .gacha-background-leave-active {
-  transition: opacity 500ms ease, transform 700ms ease;
+  transition:
+    opacity 500ms ease,
+    transform 700ms ease;
 }
 
 .gacha-background-enter-from,
@@ -222,7 +262,9 @@ onMounted(loadGachas);
 
 .gacha-focus-enter-active,
 .gacha-focus-leave-active {
-  transition: opacity 240ms ease, transform 300ms ease;
+  transition:
+    opacity 240ms ease,
+    transform 300ms ease;
 }
 
 .gacha-focus-enter-from,

@@ -1,13 +1,4 @@
-import {
-  ref,
-  computed,
-  onMounted,
-  onUnmounted,
-  watch,
-  type Ref,
-  type ShallowRef,
-  nextTick,
-} from "vue";
+import { ref, computed, onUnmounted, watch, type Ref, type ShallowRef, nextTick } from "vue";
 
 export interface VirtualGridOptions<T> {
   /** The scrollable container element */
@@ -34,22 +25,27 @@ export interface VirtualGridReturn<T> {
 }
 
 export function useVirtualGrid<T>(options: VirtualGridOptions<T>): VirtualGridReturn<T> {
-  const { containerRef, items, gap = 12, bufferRows = 3 } = options;
+  const { containerRef, items } = options;
+  const gap = Math.max(0, options.gap ?? 12);
+  const bufferRows = Math.max(0, Math.floor(options.bufferRows ?? 3));
 
   const cols = typeof options.columns === "number" ? ref(options.columns) : options.columns;
+  const safeColumns = computed(() => Math.max(1, Math.floor(cols.value) || 1));
 
   // Row height is estimated initially, then measured from actual DOM
   const rowHeight = ref(0);
   const scrollTop = ref(0);
   const containerHeight = ref(0);
+  let containerWidth = 0;
+  let isDisposed = false;
 
   // We'll measure the first rendered item to get the actual row height
   const needsMeasure = ref(true);
 
-  const totalRows = computed(() => Math.ceil(items.value.length / cols.value));
+  const totalRows = computed(() => Math.ceil(items.value.length / safeColumns.value));
 
   const totalHeight = computed(() => {
-    if (rowHeight.value === 0) return 0;
+    if (rowHeight.value === 0 || totalRows.value === 0) return 0;
     return totalRows.value * rowHeight.value + (totalRows.value - 1) * gap;
   });
 
@@ -57,7 +53,7 @@ export function useVirtualGrid<T>(options: VirtualGridOptions<T>): VirtualGridRe
     if (rowHeight.value === 0) return 0;
     const effectiveRowHeight = rowHeight.value + gap;
     const row = Math.floor(scrollTop.value / effectiveRowHeight) - bufferRows;
-    return Math.max(0, row);
+    return Math.min(Math.max(0, totalRows.value - 1), Math.max(0, row));
   });
 
   const endRow = computed(() => {
@@ -74,8 +70,8 @@ export function useVirtualGrid<T>(options: VirtualGridOptions<T>): VirtualGridRe
   });
 
   const visibleItems = computed(() => {
-    const startIdx = startRow.value * cols.value;
-    const endIdx = endRow.value * cols.value;
+    const startIdx = startRow.value * safeColumns.value;
+    const endIdx = endRow.value * safeColumns.value;
     const slice = items.value.slice(startIdx, endIdx);
     return slice.map((item, i) => ({
       item,
@@ -84,6 +80,7 @@ export function useVirtualGrid<T>(options: VirtualGridOptions<T>): VirtualGridRe
   });
 
   let rafId: number | null = null;
+  let measureRafId: number | null = null;
 
   const onScroll = () => {
     if (rafId !== null) return;
@@ -98,7 +95,24 @@ export function useVirtualGrid<T>(options: VirtualGridOptions<T>): VirtualGridRe
   const updateContainerHeight = () => {
     if (containerRef.value) {
       containerHeight.value = containerRef.value.clientHeight;
+      const nextWidth = containerRef.value.clientWidth;
+      if (containerWidth !== 0 && containerWidth !== nextWidth) {
+        needsMeasure.value = true;
+        scheduleMeasurement();
+      }
+      containerWidth = nextWidth;
     }
+  };
+
+  const scheduleMeasurement = () => {
+    if (measureRafId !== null) cancelAnimationFrame(measureRafId);
+    void nextTick(() => {
+      if (isDisposed) return;
+      measureRafId = requestAnimationFrame(() => {
+        measureRafId = null;
+        measureRowHeight();
+      });
+    });
   };
 
   let resizeObserver: ResizeObserver | null = null;
@@ -141,44 +155,35 @@ export function useVirtualGrid<T>(options: VirtualGridOptions<T>): VirtualGridRe
     (newEl, oldEl) => {
       if (oldEl) cleanupListeners(oldEl);
       if (newEl) {
+        scrollTop.value = newEl.scrollTop;
         setupListeners(newEl);
-        // Wait for DOM to render, then measure
-        nextTick(() => {
-          requestAnimationFrame(() => {
-            measureRowHeight();
-          });
-        });
+        scheduleMeasurement();
       }
     },
     { immediate: true },
   );
 
   // Re-measure when items change (e.g. after loading)
-  watch(items, () => {
-    needsMeasure.value = true;
-    nextTick(() => {
-      requestAnimationFrame(() => {
-        measureRowHeight();
-      });
-    });
-  });
-
-  onMounted(() => {
-    if (containerRef.value) {
-      nextTick(() => {
-        requestAnimationFrame(() => {
-          measureRowHeight();
-        });
-      });
-    }
-  });
+  watch(
+    [items, safeColumns],
+    () => {
+      needsMeasure.value = true;
+      rowHeight.value = 0;
+      scheduleMeasurement();
+    },
+    { flush: "post" },
+  );
 
   onUnmounted(() => {
+    isDisposed = true;
     if (containerRef.value) {
       cleanupListeners(containerRef.value);
     }
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
+    }
+    if (measureRafId !== null) {
+      cancelAnimationFrame(measureRafId);
     }
   });
 

@@ -1,8 +1,6 @@
 <!-- Layout with live2d -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
-import * as PIXI from "pixi.js";
-import { Live2DModel, MotionPreloadStrategy } from "@sekai-world/pixi-live2d-display-mulmotion";
 import SubpageHeader from "./SubpageHeader.vue";
 import BackgroundLayer from "../common/BackgroundLayer.vue";
 import { useLive2DSelection, type Live2DSelection } from "@/composables/useLive2DSelection";
@@ -10,10 +8,11 @@ import { loadLive2DModelData } from "@/utils/live2d";
 
 declare global {
   interface Window {
-    PIXI: typeof PIXI;
+    PIXI: typeof import("pixi.js");
   }
 }
-window.PIXI = PIXI;
+
+type Live2DModule = typeof import("@sekai-world/pixi-live2d-display-mulmotion");
 
 const props = defineProps<{
   watermarkText?: string;
@@ -21,8 +20,9 @@ const props = defineProps<{
 }>();
 
 const live2dContainer = ref<HTMLElement | null>(null);
-let app: PIXI.Application | null = null;
-let model: Live2DModel | null = null;
+let app: import("pixi.js").Application | null = null;
+let model: import("@sekai-world/pixi-live2d-display-mulmotion").Live2DModel | null = null;
+let live2DModule: Live2DModule | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let loadRequestId = 0;
 let isUnmounted = false;
@@ -47,15 +47,21 @@ function updateLive2DLayout() {
   model.y = -160;
 }
 
-async function replaceLive2DModel(nextSelection: Live2DSelection) {
+function syncRendererVisibility() {
   if (!app) return;
+  if (document.hidden) app.stop();
+  else app.start();
+}
+
+async function replaceLive2DModel(nextSelection: Live2DSelection) {
+  if (!app || !live2DModule) return;
   const requestId = ++loadRequestId;
 
   try {
     const { data, options } = await loadLive2DModelData(nextSelection);
-    const nextModel = await Live2DModel.from(data, {
+    const nextModel = await live2DModule.Live2DModel.from(data, {
       autoInteract: false,
-      motionPreload: MotionPreloadStrategy.NONE,
+      motionPreload: live2DModule.MotionPreloadStrategy.NONE,
     });
 
     if (isUnmounted || requestId !== loadRequestId || !app) {
@@ -73,9 +79,7 @@ async function replaceLive2DModel(nextSelection: Live2DSelection) {
       previousModel.destroy();
     }
 
-    const motionIndex = options.motions.findIndex(
-      (motion) => motion.Name === nextSelection.motion,
-    );
+    const motionIndex = options.motions.findIndex((motion) => motion.Name === nextSelection.motion);
     const expressionIndex = options.expressions.findIndex(
       (expression) => expression.Name === nextSelection.expression,
     );
@@ -93,27 +97,41 @@ async function replaceLive2DModel(nextSelection: Live2DSelection) {
   }
 }
 
-watch(
-  selection,
-  (nextSelection) => {
-    void replaceLive2DModel({ ...nextSelection });
-  },
-  { deep: true },
-);
+async function initializeLive2D() {
+  const container = live2dContainer.value;
+  if (!container) return;
+
+  try {
+    const pixi = await import("pixi.js");
+    if (isUnmounted) return;
+    window.PIXI = pixi;
+    live2DModule = await import("@sekai-world/pixi-live2d-display-mulmotion");
+    if (isUnmounted || !live2dContainer.value) return;
+
+    app = new pixi.Application({
+      view: document.createElement("canvas"),
+      resizeTo: live2dContainer.value,
+      backgroundAlpha: 0,
+      powerPreference: "low-power",
+    });
+    live2dContainer.value.appendChild(app.view as HTMLCanvasElement);
+
+    resizeObserver = new ResizeObserver(updateLive2DLayout);
+    resizeObserver.observe(live2dContainer.value);
+    document.addEventListener("visibilitychange", syncRendererVisibility);
+    syncRendererVisibility();
+    await replaceLive2DModel({ ...selection.value });
+  } catch (error) {
+    if (!isUnmounted) console.error("Failed to initialize Live2D rendering.", error);
+  }
+}
+
+watch(selection, (nextSelection) => {
+  void replaceLive2DModel({ ...nextSelection });
+});
 
 onMounted(() => {
-  if (!live2dContainer.value) return;
-
-  app = new PIXI.Application({
-    view: document.createElement("canvas"),
-    resizeTo: live2dContainer.value,
-    backgroundAlpha: 0,
-  });
-  live2dContainer.value.appendChild(app.view as HTMLCanvasElement);
-
-  resizeObserver = new ResizeObserver(updateLive2DLayout);
-  resizeObserver.observe(live2dContainer.value);
-  void replaceLive2DModel({ ...selection.value });
+  void initializeLive2D();
 });
 
 onUnmounted(() => {
@@ -122,11 +140,13 @@ onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect();
   }
+  document.removeEventListener("visibilitychange", syncRendererVisibility);
   if (app) {
     app.destroy(true, { children: true });
   }
   model = null;
   app = null;
+  live2DModule = null;
 });
 </script>
 

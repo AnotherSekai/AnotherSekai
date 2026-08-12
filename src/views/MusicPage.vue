@@ -14,13 +14,13 @@ import {
   Pause,
   Cross,
 } from "@lucide/vue";
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { useVirtualGrid } from "@/composables/useVirtualGrid";
 import axios from "axios";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import LazyImage from "@/components/common/LazyImage.vue";
 import { getCookie } from "@/utils/cookie";
-import  CommonButton from "@/components/common/CommonButton.vue"
+import CommonButton from "@/components/common/CommonButton.vue";
 
 // Sidebar filters
 const bands = [
@@ -60,6 +60,7 @@ export interface UIMusicNode {
   tags: string[];
   level: { number: number; type: string };
   difficulties: Record<string, number>;
+  searchText: string;
 }
 
 interface SekaiMusicDifficulty {
@@ -70,7 +71,7 @@ interface SekaiMusicDifficulty {
 }
 
 const isLoading = ref(true);
-const allMusicList = ref<UIMusicNode[]>([]);
+const allMusicList = shallowRef<UIMusicNode[]>([]);
 const selectedMusic = ref<UIMusicNode | null>(null);
 const searchQuery = ref("");
 const isListView = ref(false);
@@ -82,9 +83,7 @@ const musicList = computed(() => {
   }
   if (searchQuery.value && searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase();
-    filtered = filtered.filter(
-      (m) => m.title.toLowerCase().includes(q) || m.artist.toLowerCase().includes(q),
-    );
+    filtered = filtered.filter((music) => music.searchText.includes(q));
   }
   return filtered;
 });
@@ -153,12 +152,13 @@ const difficultyOptions = [
 ] as const;
 
 const selectedDifficulty = ref("hard");
+const difficultyConfigById = new Map(difficultyOptions.map((option) => [option.id, option]));
 
 const getBadgeDiffConfig = (diffId: string) => {
-  return difficultyOptions.find((d) => d.id === diffId) || difficultyOptions[2]; // default to hard if not found
+  return difficultyConfigById.get(diffId) ?? difficultyOptions[2];
 };
 
-watch(isListView, () => {
+watch([isListView, selectedBand, searchQuery], () => {
   nextTick(() => {
     if (gridContainer.value) {
       gridContainer.value.scrollTop = 0;
@@ -168,13 +168,16 @@ watch(isListView, () => {
 
 // Virtual Grid Setup
 const gridContainer = ref<HTMLElement | null>(null);
+const gridColumns = computed(() => (isListView.value ? 1 : 4));
 const { visibleItems, totalHeight, offsetY } = useVirtualGrid({
   containerRef: gridContainer,
   items: musicList,
-  columns: 4,
+  columns: gridColumns,
   gap: 12, // gap-3 = 12px
   bufferRows: 4,
 });
+
+const musicRequestController = new AbortController();
 
 onMounted(async () => {
   try {
@@ -182,16 +185,37 @@ onMounted(async () => {
     const dbSuffix = region === "jp" ? "" : `-${region}`;
 
     const [resMusics, resTags, resDiffs] = await Promise.all([
-      axios.get<SekaiMusicNode[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/musics.json`),
+      axios.get<SekaiMusicNode[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/musics.json`, {
+        signal: musicRequestController.signal,
+      }),
       axios
-        .get<SekaiMusicTag[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/musicTags.json`)
-        .catch(() => ({ data: [] as SekaiMusicTag[] })),
+        .get<SekaiMusicTag[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/musicTags.json`, {
+          signal: musicRequestController.signal,
+        })
+        .catch((error) => {
+          if (axios.isCancel(error)) throw error;
+          return { data: [] as SekaiMusicTag[] };
+        }),
       axios
-        .get<
-          SekaiMusicDifficulty[]
-        >(`/sekai-world/sekai-master-db${dbSuffix}-diff/musicDifficulties.json`)
-        .catch(() => ({ data: [] as SekaiMusicDifficulty[] })),
+        .get<SekaiMusicDifficulty[]>(
+          `/sekai-world/sekai-master-db${dbSuffix}-diff/musicDifficulties.json`,
+          {
+            signal: musicRequestController.signal,
+          },
+        )
+        .catch((error) => {
+          if (axios.isCancel(error)) throw error;
+          return { data: [] as SekaiMusicDifficulty[] };
+        }),
     ]);
+
+    if (
+      !Array.isArray(resMusics.data) ||
+      !Array.isArray(resTags.data) ||
+      !Array.isArray(resDiffs.data)
+    ) {
+      throw new Error("Invalid music catalog response.");
+    }
 
     const tagMap = new Map<number, string[]>();
     for (const item of resTags.data) {
@@ -209,32 +233,37 @@ onMounted(async () => {
       diffMap.get(diff.musicId)![diff.musicDifficulty] = diff.playLevel;
     }
 
-    allMusicList.value = resMusics.data.map((item) => ({
-      id: item.id,
-      title: item.title,
-      artist:
-        item.composer !== item.lyricist ? `${item.composer} / ${item.lyricist}` : item.composer,
-      cover: `/storage/sekai-${region}-assets/music/jacket/${item.assetbundleName}/${item.assetbundleName}.webp`,
-      audioSrc: `/storage/sekai-jp-assets/music/short/${item.id.toString().padStart(4, "0")}_01/${item.id.toString().padStart(4, "0")}_01_short.mp3`,
-      tags: tagMap.get(item.id) || [],
-      level: {
-        number: Math.floor(Math.random() * 15) + 15,
-        type: Math.random() > 0.5 ? "Orig." : "2D",
-      },
-      difficulties: diffMap.get(item.id) || {
-        easy: 0,
-        normal: 0,
-        hard: 0,
-        expert: 0,
-        master: 0,
-      },
-    }));
+    allMusicList.value = resMusics.data.map((item) => {
+      const artist =
+        item.composer !== item.lyricist ? `${item.composer} / ${item.lyricist}` : item.composer;
+      const paddedId = item.id.toString().padStart(4, "0");
+      return {
+        id: item.id,
+        title: item.title,
+        artist,
+        cover: `/storage/sekai-${region}-assets/music/jacket/${item.assetbundleName}/${item.assetbundleName}.webp`,
+        audioSrc: `/storage/sekai-jp-assets/music/short/${paddedId}_01/${paddedId}_01_short.mp3`,
+        tags: tagMap.get(item.id) ?? [],
+        level: {
+          number: Math.floor(Math.random() * 15) + 15,
+          type: Math.random() > 0.5 ? "Orig." : "2D",
+        },
+        difficulties: diffMap.get(item.id) ?? {
+          easy: 0,
+          normal: 0,
+          hard: 0,
+          expert: 0,
+          master: 0,
+        },
+        searchText: `${item.title} ${artist}`.toLowerCase(),
+      };
+    });
 
     if (allMusicList.value.length > 0) {
       selectedMusic.value = allMusicList.value[0] ?? null;
     }
   } catch (error) {
-    console.error("Failed to fetch music data:", error);
+    if (!axios.isCancel(error)) console.error("Failed to fetch music data:", error);
   } finally {
     isLoading.value = false;
   }
@@ -243,16 +272,21 @@ onMounted(async () => {
 // --- Music Player ---
 let audio: HTMLAudioElement | null = null;
 const isPlaying = ref(false);
+let playRequestId = 0;
+
+const handleAudioEnded = () => {
+  isPlaying.value = false;
+};
 
 onMounted(() => {
   audio = new Audio();
-  audio.addEventListener("ended", () => {
-    isPlaying.value = false;
-  });
+  audio.preload = "none";
+  audio.addEventListener("ended", handleAudioEnded);
 });
 
 watch(selectedMusic, (newMusic) => {
   if (!newMusic || !audio) return;
+  const requestId = ++playRequestId;
   // Stop current, switch track
   audio.pause();
   audio.src = newMusic.audioSrc;
@@ -262,23 +296,26 @@ watch(selectedMusic, (newMusic) => {
     audio
       .play()
       .then(() => {
-        isPlaying.value = true;
+        if (requestId === playRequestId) isPlaying.value = true;
       })
       .catch(() => {
         // Autoplay may be blocked by browser
-        isPlaying.value = false;
+        if (requestId === playRequestId) isPlaying.value = false;
       });
   } else {
     isPlaying.value = false;
   }
 });
 
-const togglePlay = () => {
+const togglePlay = async () => {
   if (!audio) return;
   if (audio.paused) {
-    audio.play().then(() => {
+    try {
+      await audio.play();
       isPlaying.value = true;
-    });
+    } catch {
+      isPlaying.value = false;
+    }
   } else {
     audio.pause();
     isPlaying.value = false;
@@ -286,10 +323,13 @@ const togglePlay = () => {
 };
 
 onUnmounted(() => {
+  musicRequestController.abort();
+  playRequestId += 1;
   if (audio) {
     audio.pause();
-    audio.src = "";
-    // Let garbage collection handle the event listeners since we drop the reference
+    audio.removeEventListener("ended", handleAudioEnded);
+    audio.removeAttribute("src");
+    audio.load();
     audio = null;
   }
 });
@@ -317,7 +357,7 @@ onUnmounted(() => {
           @click="isListView = !isListView"
         >
           <List class="h-4 w-4 text-indigo-500" />
-          <span class="text-xs font-bold pr-1">{{ isListView ? 'List' : 'Grid' }}</span>
+          <span class="text-xs font-bold pr-1">{{ isListView ? "List" : "Grid" }}</span>
         </button>
 
         <div class="flex-1" />
@@ -376,7 +416,11 @@ onUnmounted(() => {
           </div>
 
           <!-- GRID VIEW -->
-          <div v-else-if="!isListView" class="relative w-full" :style="{ height: `${totalHeight}px` }">
+          <div
+            v-else-if="!isListView"
+            class="relative w-full"
+            :style="{ height: `${totalHeight + 80}px` }"
+          >
             <div
               class="absolute top-0 left-0 right-0 grid grid-cols-4 gap-3 p-2 pb-20 will-change-transform"
               :style="{ transform: `translateY(${offsetY}px)` }"
@@ -418,47 +462,50 @@ onUnmounted(() => {
           </div>
 
           <!-- LIST VIEW -->
-          <div v-else class="flex flex-col gap-1 p-2 pb-20">
-            <button
-              v-for="item in musicList"
-              :key="item.id"
-              class="flex items-center gap-3 px-3 py-2 rounded-xl transition-all outline-none"
-              :class="
-                selectedMusic?.id === item.id
-                  ? 'bg-white/25 ring-2 ring-white/40'
-                  : 'bg-white/5 hover:bg-white/15'
-              "
-              @click="selectedMusic = item"
+          <div v-else class="relative w-full" :style="{ height: `${totalHeight + 80}px` }">
+            <div
+              class="absolute inset-x-0 top-0 flex flex-col gap-3 p-2 pb-20 will-change-transform"
+              :style="{ transform: `translateY(${offsetY}px)` }"
             >
-              <!-- Thumbnail -->
-              <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                <LazyImage :src="item.cover" class="w-full h-full object-cover block" />
-              </div>
-              <!-- Title & Artist -->
-              <div class="flex-1 min-w-0 text-left">
-                <p class="text-sm font-bold text-white truncate">{{ item.title }}</p>
-                <p class="text-xs text-white/60 truncate">{{ item.artist }}</p>
-              </div>
-              <!-- Difficulty pills -->
-              <div class="flex items-center gap-1 flex-shrink-0">
-                <span
-                  v-for="diff in difficultyOptions"
-                  :key="diff.id"
-                  v-show="item.difficulties[diff.id] !== undefined"
-                  class="text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[24px] text-center"
-                  :class="[diff.badgeBgColor, diff.badgeTextColor]"
-                >
-                  {{ item.difficulties[diff.id] }}
-                </span>
-              </div>
-            </button>
+              <button
+                v-for="{ item } in visibleItems"
+                :key="item.id"
+                data-virtual-item
+                class="flex items-center gap-3 px-3 py-2 rounded-xl transition-all outline-none"
+                :class="
+                  selectedMusic?.id === item.id
+                    ? 'bg-white/25 ring-2 ring-white/40'
+                    : 'bg-white/5 hover:bg-white/15'
+                "
+                @click="selectedMusic = item"
+              >
+                <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                  <LazyImage :src="item.cover" class="w-full h-full object-cover block" />
+                </div>
+                <div class="flex-1 min-w-0 text-left">
+                  <p class="text-sm font-bold text-white truncate">{{ item.title }}</p>
+                  <p class="text-xs text-white/60 truncate">{{ item.artist }}</p>
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <span
+                    v-for="diff in difficultyOptions"
+                    :key="diff.id"
+                    v-show="item.difficulties[diff.id] !== undefined"
+                    class="text-[10px] font-black px-1.5 py-0.5 rounded-md min-w-[24px] text-center"
+                    :class="[diff.badgeBgColor, diff.badgeTextColor]"
+                  >
+                    {{ item.difficulties[diff.id] }}
+                  </span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- RIGHT: Detail Panel -->
         <div class="flex-[2] h-full flex flex-col justify-end pb-8">
           <div
-            class="bg-[#787CBF]/60 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/20 relative w-full "
+            class="bg-[#787CBF]/60 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/20 relative w-full"
           >
             <!-- Top Right Action -->
             <button class="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
@@ -524,12 +571,7 @@ onUnmounted(() => {
               </div>
 
               <!-- Actions -->
-              <CommonButton
-              type="text"
-              color="teal"
-              size="md">
-                Select
-              </CommonButton>
+              <CommonButton type="text" color="teal" size="md"> Select </CommonButton>
 
               <hr />
 

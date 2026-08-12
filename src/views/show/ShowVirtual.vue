@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import {
-  CalendarDays,
-  History,
-  Radio,
-  RefreshCw,
-  Sparkles,
-  UsersRound,
-} from "@lucide/vue";
+import { CalendarDays, History, Radio, RefreshCw, Sparkles, UsersRound } from "@lucide/vue";
 import ShowLayout from "@/components/layout/SubLayout.vue";
 import VirtualShowDetailDialog from "@/components/features/show/VirtualShowDetailDialog.vue";
 import { getRegion } from "@/utils/cookie";
@@ -32,13 +25,13 @@ const failedPrimaryImages = ref(new Set<number>());
 const failedImages = ref(new Set<number>());
 let requestId = 0;
 
-const formatDate = (timestamp: number) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(timestamp);
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+const formatDate = (timestamp: number) => dateFormatter.format(timestamp);
 
 const getStatusLabel = (show: VirtualShowSummary) => {
   if (show.status === "live") return "Live now";
@@ -130,7 +123,11 @@ onMounted(() => loadShows());
           <button
             type="button"
             class="flex items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 active:scale-[0.98]"
-            :class="scope === 'active' ? 'bg-cyan-200 text-[#17213f] shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'"
+            :class="
+              scope === 'active'
+                ? 'bg-cyan-200 text-[#17213f] shadow-md'
+                : 'text-white/70 hover:bg-white/10 hover:text-white'
+            "
             :aria-pressed="scope === 'active'"
             @click="selectScope('active')"
           >
@@ -140,7 +137,11 @@ onMounted(() => loadShows());
           <button
             type="button"
             class="flex items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 active:scale-[0.98]"
-            :class="scope === 'archive' ? 'bg-cyan-200 text-[#17213f] shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'"
+            :class="
+              scope === 'archive'
+                ? 'bg-cyan-200 text-[#17213f] shadow-md'
+                : 'text-white/70 hover:bg-white/10 hover:text-white'
+            "
             :aria-pressed="scope === 'archive'"
             @click="selectScope('archive')"
           >
@@ -150,8 +151,14 @@ onMounted(() => loadShows());
         </div>
       </div>
 
-      <div class="virtual-show-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-20">
-        <div v-if="isLoading" aria-label="Loading virtual shows" class="flex flex-col items-center gap-4 py-1">
+      <div
+        class="virtual-show-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-20"
+      >
+        <div
+          v-if="isLoading"
+          aria-label="Loading virtual shows"
+          class="flex flex-col items-center gap-4 py-1"
+        >
           <div
             v-for="item in 5"
             :key="item"
@@ -248,10 +255,7 @@ onMounted(() => loadShows());
     </section>
   </ShowLayout>
 
-  <VirtualShowDetailDialog
-    :show="selectedShow"
-    v-model:open="dialogOpen"
-  />
+  <VirtualShowDetailDialog :show="selectedShow" v-model:open="dialogOpen" />
 </template>
 
 <style scoped>

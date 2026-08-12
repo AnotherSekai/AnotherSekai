@@ -10,8 +10,8 @@ import {
   Volume2,
   VolumeX,
 } from "@lucide/vue";
-import { ref, watch, onMounted, computed } from "vue";
-import { useElementSize } from "@vueuse/core";
+import { computed, ref, shallowRef, watch } from "vue";
+import { refDebounced, useElementSize } from "@vueuse/core";
 import axios from "axios";
 import { getCookie, setCookie } from "../../../utils/cookie";
 import { useLive2DSelection } from "@/composables/useLive2DSelection";
@@ -73,7 +73,7 @@ function toggleBgm() {
 }
 
 const { selection, applySelection } = useLive2DSelection();
-const modelList = ref<Live2DModelEntry[]>([]);
+const modelList = shallowRef<Live2DModelEntry[]>([]);
 const searchQuery = ref("");
 const isDialogOpen = ref(false);
 const pendingModel = ref<Live2DModelEntry | null>(null);
@@ -82,6 +82,8 @@ const pendingExpression = ref("");
 const modelOptions = ref<Live2DModelOptions>({ motions: [], expressions: [] });
 const isLoadingOptions = ref(false);
 const modelListError = ref("");
+const isLoadingModels = ref(false);
+const hasLoadedModels = ref(false);
 const modelOptionsError = ref("");
 let optionsRequestId = 0;
 
@@ -91,20 +93,20 @@ const titleSearch = ref("");
 const isLoadingTitles = ref(false);
 const hasLoadedTitles = ref(false);
 const titleListError = ref("");
-const kizunaTitles = ref<KizunaTitle[]>([]);
-const otherTitles = ref<OtherTitle[]>([]);
+const kizunaTitles = shallowRef<KizunaTitle[]>([]);
+const otherTitles = shallowRef<OtherTitle[]>([]);
 const titlesScrollRef = ref<HTMLElement | null>(null);
+const debouncedTitleSearch = refDebounced(titleSearch, 120);
 
 const filteredTitles = computed<DisplayTitle[]>(() => {
   const source: DisplayTitle[] =
     activeTitleTab.value === "kizuna" ? kizunaTitles.value : otherTitles.value;
-  const query = titleSearch.value.trim().toLocaleLowerCase();
+  const query = debouncedTitleSearch.value.trim().toLowerCase();
   if (!query) return source;
 
   return source.filter((title) => {
-    const searchableName =
-      title.kind === "kizuna" ? `${title.name} ${title.wordName}` : title.name;
-    return searchableName.toLocaleLowerCase().includes(query);
+    const searchableName = title.kind === "kizuna" ? `${title.name} ${title.wordName}` : title.name;
+    return searchableName.toLowerCase().includes(query);
   });
 });
 
@@ -129,24 +131,28 @@ const filteredModels = computed(() => {
   if (!q) return modelList.value;
   return modelList.value.filter(
     (model) =>
-      model.modelName.toLowerCase().includes(q) ||
-      model.modelBase.toLowerCase().includes(q),
+      model.modelName.toLowerCase().includes(q) || model.modelBase.toLowerCase().includes(q),
   );
 });
 
 const fetchModelList = async () => {
+  if (isLoadingModels.value || hasLoadedModels.value) return;
+  isLoadingModels.value = true;
+  modelListError.value = "";
   try {
     const res = await axios.get<Live2DModelEntry[]>(
       "/storage/sekai-live2d-assets/live2d/model_list.json",
     );
+    if (!Array.isArray(res.data)) throw new Error("Invalid Live2D model list response.");
     modelList.value = res.data;
+    hasLoadedModels.value = true;
   } catch (err) {
     modelListError.value = "The Live2D model list could not be loaded.";
     console.error("Failed to fetch model list", err);
+  } finally {
+    isLoadingModels.value = false;
   }
 };
-
-onMounted(fetchModelList);
 
 function handleTitleImageError(event: Event) {
   const image = event.currentTarget as HTMLImageElement | null;
@@ -160,6 +166,9 @@ async function fetchTitles() {
   try {
     const region = getCookie("sekai-region", "en");
     const response = await axios.get<TitleCatalog>("/api/titles", { params: { region } });
+    if (!Array.isArray(response.data.kizuna) || !Array.isArray(response.data.others)) {
+      throw new Error("Invalid title catalog response.");
+    }
     kizunaTitles.value = response.data.kizuna;
     otherTitles.value = response.data.others;
     hasLoadedTitles.value = true;
@@ -207,12 +216,12 @@ async function selectModel(model: Live2DModelEntry, restoreSelection = false) {
 watch(isDialogOpen, (open) => {
   if (!open) return;
   searchQuery.value = "";
-  const currentModel =
-    modelList.value.find(
-      (model) =>
-        model.modelPath === selection.value.modelPath &&
-        model.modelFile === selection.value.modelFile,
-    ) ?? { ...selection.value };
+  void fetchModelList();
+  const currentModel = modelList.value.find(
+    (model) =>
+      model.modelPath === selection.value.modelPath &&
+      model.modelFile === selection.value.modelFile,
+  ) ?? { ...selection.value };
   void selectModel(currentModel, true);
 });
 
@@ -277,10 +286,17 @@ function applyLive2D() {
             </div>
 
             <div class="flex-1 min-h-0 overflow-y-auto px-5 pb-5">
-              <p v-if="modelListError" class="py-8 text-center text-sm text-destructive">
+              <div
+                v-if="isLoadingModels"
+                class="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"
+              >
+                <LoaderCircle class="h-4 w-4 animate-spin" />
+                Loading models…
+              </div>
+              <p v-else-if="modelListError" class="py-8 text-center text-sm text-destructive">
                 {{ modelListError }}
               </p>
-              <div class="flex flex-col gap-2">
+              <div v-else class="flex flex-col gap-2">
                 <button
                   v-for="model in filteredModels"
                   :key="`${model.modelPath}/${model.modelFile}`"
@@ -303,11 +319,10 @@ function applyLive2D() {
                   <span class="min-w-0 flex-1 truncate text-xs font-semibold">
                     {{ model.modelName }}
                   </span>
-
                 </button>
               </div>
               <p
-                v-if="!modelListError && filteredModels.length === 0"
+                v-if="!isLoadingModels && !modelListError && filteredModels.length === 0"
                 class="py-8 text-center text-sm text-muted-foreground"
               >
                 No matching models.
@@ -318,7 +333,9 @@ function applyLive2D() {
           <section class="flex flex-col min-h-0 bg-muted/20">
             <div class="flex-1 overflow-y-auto p-5 space-y-5">
               <div>
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <p
+                  class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                >
                   Selected model
                 </p>
                 <p class="mt-1 text-sm font-semibold break-all">
@@ -326,7 +343,10 @@ function applyLive2D() {
                 </p>
               </div>
 
-              <div v-if="isLoadingOptions" class="flex items-center gap-2 text-sm text-muted-foreground">
+              <div
+                v-if="isLoadingOptions"
+                class="flex items-center gap-2 text-sm text-muted-foreground"
+              >
                 <LoaderCircle class="h-4 w-4 animate-spin" />
                 Loading motions and expressions…
               </div>
@@ -410,9 +430,7 @@ function applyLive2D() {
         class="z-[200] h-[min(88dvh,820px)] w-[calc(100vw-1.5rem)] max-w-6xl grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden p-0"
       >
         <DialogHeader class="shrink-0 border-b px-5 pb-4 pt-5 pr-14 sm:px-6 sm:pt-6">
-          <DialogTitle class="flex items-center gap-2 text-xl">
-            Titles
-          </DialogTitle>
+          <DialogTitle class="flex items-center gap-2 text-xl"> Titles </DialogTitle>
           <DialogDescription>
             Browse every Kizuna and standard title available for your selected region.
           </DialogDescription>
@@ -536,7 +554,9 @@ function applyLive2D() {
               >
                 <div
                   class="relative mx-auto aspect-[19/4] w-full max-w-[380px] overflow-hidden rounded-[999px] bg-muted/50"
-                  :style="entry.item.kind === 'kizuna' ? { background: entry.item.background } : undefined"
+                  :style="
+                    entry.item.kind === 'kizuna' ? { background: entry.item.background } : undefined
+                  "
                 >
                   <template v-if="entry.item.kind === 'others'">
                     <img

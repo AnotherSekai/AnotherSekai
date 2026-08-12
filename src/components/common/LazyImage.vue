@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch } from "vue";
-import { useIntersectionObserver } from "@vueuse/core";
+import { ref, watch } from "vue";
 
 const props = defineProps<{
   src: string;
@@ -8,46 +7,35 @@ const props = defineProps<{
   class?: string;
 }>();
 
-const imageRef = ref<HTMLImageElement | null>(null);
-const isVisible = ref(false);
 const isLoaded = ref(false);
-
-const { stop } = useIntersectionObserver(
-  imageRef,
-  ([entry]) => {
-    if (entry?.isIntersecting) {
-      isVisible.value = true;
-      stop(); // stop observing once visible
-    }
-  },
-  {
-    rootMargin: "200px", // start loading 200px before entering viewport
-  },
-);
+const hasError = ref(false);
 
 watch(
   () => props.src,
   () => {
     isLoaded.value = false;
+    hasError.value = false;
   },
 );
-
-onUnmounted(() => {
-  stop();
-});
 </script>
 
 <template>
   <div class="lazy-image-wrapper" :class="props.class">
     <div class="lazy-image-inner">
-      <div v-if="!isLoaded" class="lazy-image-placeholder" />
+      <div
+        v-if="!isLoaded"
+        class="lazy-image-placeholder"
+        :class="{ 'lazy-image-placeholder--failed': hasError }"
+      />
       <img
-        ref="imageRef"
-        :src="isVisible ? props.src : undefined"
+        :src="props.src"
         :alt="props.alt ?? ''"
+        loading="lazy"
+        decoding="async"
         class="lazy-image"
         :class="{ 'lazy-image--loaded': isLoaded }"
         @load="isLoaded = true"
+        @error="hasError = true"
       />
     </div>
   </div>
@@ -79,6 +67,11 @@ onUnmounted(() => {
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: inherit;
+}
+
+.lazy-image-placeholder--failed {
+  animation: none;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 @keyframes shimmer {

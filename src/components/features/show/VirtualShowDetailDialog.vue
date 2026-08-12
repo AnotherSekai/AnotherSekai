@@ -41,28 +41,25 @@ let requestId = 0;
 
 const displayShow = computed(() => detail.value ?? props.show);
 
-const formatDate = (timestamp: number) =>
-  new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(timestamp);
-
-const formatTime = (timestamp: number) =>
-  new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(timestamp);
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+const formatDate = (timestamp: number) => dateFormatter.format(timestamp);
+const formatTime = (timestamp: number) => timeFormatter.format(timestamp);
 
 const formatType = (value: string) =>
-  value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const statusLabel = computed(() => {
   const show = displayShow.value;
@@ -114,9 +111,7 @@ watch(
         <div class="px-5 pb-6 pt-6 sm:px-7 sm:pb-7 sm:pt-7">
           <DialogHeader class="pr-8 text-left">
             <div class="mb-2 flex flex-wrap items-center gap-2 text-xs font-bold text-cyan-100">
-              <span
-                class="rounded-full border border-cyan-200/25 bg-cyan-200/15 px-3 py-1"
-              >
+              <span class="rounded-full border border-cyan-200/25 bg-cyan-200/15 px-3 py-1">
                 {{ statusLabel }}
               </span>
               <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-white/75">
@@ -136,7 +131,11 @@ watch(
 
           <div v-if="isLoading" aria-label="Loading virtual show details" class="mt-6 space-y-4">
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div v-for="item in 3" :key="item" class="h-20 animate-pulse rounded-xl bg-white/10" />
+              <div
+                v-for="item in 3"
+                :key="item"
+                class="h-20 animate-pulse rounded-xl bg-white/10"
+              />
             </div>
             <div class="h-36 animate-pulse rounded-xl bg-white/10" />
             <div class="h-28 animate-pulse rounded-xl bg-white/10" />
@@ -169,7 +168,9 @@ watch(
                 <p class="text-2xl font-black">{{ detail.scheduleCount }}</p>
                 <p class="text-xs font-semibold text-white/55">Showtimes</p>
               </div>
-              <div class="col-span-2 rounded-xl border border-white/15 bg-white/8 p-4 sm:col-span-1">
+              <div
+                class="col-span-2 rounded-xl border border-white/15 bg-white/8 p-4 sm:col-span-1"
+              >
                 <Gift class="mb-3 h-5 w-5 text-cyan-200" :stroke-width="2" />
                 <p class="text-2xl font-black">{{ detail.rewardCount }}</p>
                 <p class="text-xs font-semibold text-white/55">Reward sets</p>
@@ -210,9 +211,7 @@ watch(
                   class="rounded-xl border border-white/12 bg-[#0e1b31]/70 px-4 py-3"
                 >
                   <p class="text-sm font-bold text-white/90">{{ formatTime(schedule.startAt) }}</p>
-                  <p class="mt-1 text-xs text-white/50">
-                    Ends {{ formatTime(schedule.endAt) }}
-                  </p>
+                  <p class="mt-1 text-xs text-white/50">Ends {{ formatTime(schedule.endAt) }}</p>
                 </div>
               </div>
               <div v-else class="grid gap-2 sm:grid-cols-2">

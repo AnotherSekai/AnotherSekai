@@ -1,14 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
 import axios from "axios";
-import {
-  Pickaxe,
-  TreePine,
-  Diamond,
-  Flower2,
-  Package,
-  type LucideIcon,
-} from "@lucide/vue";
+import { Pickaxe, TreePine, Diamond, Flower2, Package, type LucideIcon } from "@lucide/vue";
 import { getCookie } from "@/utils/cookie";
 
 interface MySekaiTool {
@@ -59,7 +52,7 @@ interface TabConfig {
   filter: (item: DisplayItem) => boolean;
 }
 
-const allItems = ref<DisplayItem[]>([]);
+const allItems = shallowRef<DisplayItem[]>([]);
 const isLoading = ref(true);
 const activeTab = ref("tools");
 
@@ -92,8 +85,7 @@ const tabs: TabConfig[] = [
     id: "other",
     name: "Other",
     icon: Package,
-    filter: (item) =>
-      ["junk", "game_character", "tone", "other"].includes(item.category),
+    filter: (item) => ["junk", "game_character", "tone", "other"].includes(item.category),
   },
 ];
 
@@ -111,6 +103,20 @@ const failedImages = ref<Record<number, boolean>>({});
 // Held item (Minecraft-style cursor pickup)
 const heldItem = ref<DisplayItem | null>(null);
 const heldPos = ref({ x: 0, y: 0 });
+let pointerRafId: number | null = null;
+
+const schedulePointerUpdate = (e: MouseEvent, target: "tooltip" | "held") => {
+  if (pointerRafId !== null) return;
+  const { clientX, clientY } = e;
+  pointerRafId = requestAnimationFrame(() => {
+    pointerRafId = null;
+    if (target === "held" && heldItem.value) {
+      heldPos.value = { x: clientX, y: clientY };
+    } else if (target === "tooltip" && tooltipItem.value && !heldItem.value) {
+      tooltipPos.value = { x: clientX + 12, y: clientY + 12 };
+    }
+  });
+};
 
 const showTooltip = (item: DisplayItem, e: MouseEvent) => {
   if (heldItem.value) return;
@@ -120,7 +126,7 @@ const showTooltip = (item: DisplayItem, e: MouseEvent) => {
 
 const moveTooltip = (e: MouseEvent) => {
   if (heldItem.value) return;
-  tooltipPos.value = { x: e.clientX + 12, y: e.clientY + 12 };
+  schedulePointerUpdate(e, "tooltip");
 };
 
 const hideTooltip = () => {
@@ -130,33 +136,41 @@ const hideTooltip = () => {
 const handleItemClick = (item: DisplayItem, e: MouseEvent) => {
   if (heldItem.value) {
     heldItem.value = null;
+    window.removeEventListener("mousemove", moveHeldItem);
     return;
   }
   if (!failedImages.value[item.id]) {
     heldItem.value = item;
     heldPos.value = { x: e.clientX, y: e.clientY };
+    window.addEventListener("mousemove", moveHeldItem, { passive: true });
   }
 };
 
 const moveHeldItem = (e: MouseEvent) => {
   if (!heldItem.value) return;
-  heldPos.value = { x: e.clientX, y: e.clientY };
+  schedulePointerUpdate(e, "held");
 };
 
+const requestController = new AbortController();
+
 onMounted(async () => {
-  window.addEventListener("mousemove", moveHeldItem);
   try {
     const region = getCookie("sekai-region", "en");
     const dbSuffix = region === "jp" ? "" : `-${region}`;
 
     const [toolsRes, materialsRes] = await Promise.all([
-      axios.get<MySekaiTool[]>(
-        `/sekai-world/sekai-master-db${dbSuffix}-diff/mysekaiTools.json`
-      ),
+      axios.get<MySekaiTool[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/mysekaiTools.json`, {
+        signal: requestController.signal,
+      }),
       axios.get<MySekaiMaterial[]>(
-        `/sekai-world/sekai-master-db${dbSuffix}-diff/mysekaiMaterials.json`
+        `/sekai-world/sekai-master-db${dbSuffix}-diff/mysekaiMaterials.json`,
+        { signal: requestController.signal },
       ),
     ]);
+
+    if (!Array.isArray(toolsRes.data) || !Array.isArray(materialsRes.data)) {
+      throw new Error("Invalid MySekai inventory response.");
+    }
 
     const tools: DisplayItem[] = toolsRes.data.map((t) => ({
       id: t.id,
@@ -184,14 +198,16 @@ onMounted(async () => {
 
     allItems.value = [...tools, ...materials];
   } catch (err) {
-    console.error("Failed to load MySekai items:", err);
+    if (!axios.isCancel(err)) console.error("Failed to load MySekai items:", err);
   } finally {
     isLoading.value = false;
   }
 });
 
 onUnmounted(() => {
+  requestController.abort();
   window.removeEventListener("mousemove", moveHeldItem);
+  if (pointerRafId !== null) cancelAnimationFrame(pointerRafId);
 });
 </script>
 
@@ -239,16 +255,10 @@ onUnmounted(() => {
         "
       >
         <div v-if="isLoading" class="flex items-center justify-center h-48">
-          <span class="text-[#555555] font-bold text-sm animate-pulse"
-            >Loading items...</span
-          >
+          <span class="text-[#555555] font-bold text-sm animate-pulse">Loading items...</span>
         </div>
 
-        <div
-          v-else
-          class="grid grid-cols-9 gap-1"
-          @mouseleave="hideTooltip"
-        >
+        <div v-else class="grid grid-cols-9 gap-1" @mouseleave="hideTooltip">
           <div
             v-for="item in filteredItems"
             :key="item.id"
@@ -297,10 +307,7 @@ onUnmounted(() => {
         style="box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5)"
       >
         <div class="font-bold text-yellow-300 mb-0.5">{{ tooltipItem.name }}</div>
-        <div
-          v-if="tooltipItem.rarity"
-          class="text-[11px] text-purple-300 mb-0.5 capitalize"
-        >
+        <div v-if="tooltipItem.rarity" class="text-[11px] text-purple-300 mb-0.5 capitalize">
           {{ tooltipItem.rarity.replace("rarity_", "Rarity ") }}
         </div>
         <div class="text-gray-300 text-xs whitespace-pre-line">

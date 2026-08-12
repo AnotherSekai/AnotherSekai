@@ -28,12 +28,19 @@ const emit = defineEmits<{
   "open-menu": [];
 }>();
 
-const rank = ref(Number(getCookie("sekai-user-rank", "1")));
-const crystal = ref(Number(getCookie("sekai-user-crystal", "0")));
+const readFiniteNumber = (name: string, fallback: number) => {
+  const value = Number(getCookie(name, String(fallback)));
+  return Number.isFinite(value) ? value : fallback;
+};
+
+const rank = ref(readFiniteNumber("sekai-user-rank", 1));
+const crystal = ref(readFiniteNumber("sekai-user-crystal", 0));
 const energy = ref(String(getCookie("sekai-user-energy", "50/20")));
 const isModifyOpen = ref(false);
 
 const saveData = () => {
+  rank.value = Number.isFinite(rank.value) ? rank.value : 1;
+  crystal.value = Number.isFinite(crystal.value) ? crystal.value : 0;
   setCookie("sekai-user-rank", String(rank.value));
   setCookie("sekai-user-crystal", String(crystal.value));
   setCookie("sekai-user-energy", String(energy.value));
@@ -74,11 +81,12 @@ const saveData = () => {
       >
         <Diamond class="h-3.5 w-3.5 text-purple-200 fill-blue-200" />
         <span class="text-white text-sm font-bold tabular-nums">{{ crystal }}</span>
-        
 
         <AlertDialog>
           <AlertDialogTrigger as-child>
-            <button class="w-5 h-5 rounded-full bg-cyan-400 flex items-center justify-center hover:bg-cyan-300 transition-colors shadow-sm">
+            <button
+              class="w-5 h-5 rounded-full bg-cyan-400 flex items-center justify-center hover:bg-cyan-300 transition-colors shadow-sm"
+            >
               <Plus class="h-3 w-3 text-white" :stroke-width="3" />
             </button>
           </AlertDialogTrigger>
@@ -102,22 +110,19 @@ const saveData = () => {
       >
         <Zap class="h-3.5 w-3.5 text-green-400 fill-green-400" />
         <span class="text-white text-sm font-bold tabular-nums">{{ energy }}</span>
-        
 
         <Dialog v-model:open="isModifyOpen">
           <DialogTrigger as-child>
             <button
               class="w-5 h-5 rounded-full bg-cyan-400 flex items-center justify-center hover:bg-cyan-300 transition-colors shadow-sm"
             >
-            <Settings class="h-3 w-3 text-white" :stroke-width="3" />
-          </button>
+              <Settings class="h-3 w-3 text-white" :stroke-width="3" />
+            </button>
           </DialogTrigger>
           <DialogContent class="z-[200]">
             <DialogHeader>
               <DialogTitle>Modify</DialogTitle>
-              <DialogDescription>
-                Modify Rank, Crystal and Energy.
-              </DialogDescription>
+              <DialogDescription> Modify Rank, Crystal and Energy. </DialogDescription>
             </DialogHeader>
             <div class="grid gap-4 py-2">
               <div class="grid grid-cols-4 items-center gap-4">

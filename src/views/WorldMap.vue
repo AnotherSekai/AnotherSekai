@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onUnmounted, ref } from "vue";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import BackgroundLayer from "@/components/common/BackgroundLayer.vue";
 
@@ -12,30 +12,45 @@ const rotateY = ref(0);
 const isDragging = ref(false);
 let startX = 0;
 let currentRotateY = 0;
+let pointerX = 0;
+let pointerRafId: number | null = null;
 
 const onPointerDown = (e: PointerEvent) => {
   isDragging.value = true;
   startX = e.clientX;
   currentRotateY = rotateY.value;
-  (e.target as HTMLElement)?.setPointerCapture(e.pointerId);
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 };
 
 const onPointerMove = (e: PointerEvent) => {
   if (!isDragging.value) return;
-  const dx = e.clientX - startX;
-  // sensitivity: 0.5 degrees per pixel dragged
-  rotateY.value = currentRotateY + dx * 0.5;
+  pointerX = e.clientX;
+  if (pointerRafId !== null) return;
+  pointerRafId = requestAnimationFrame(() => {
+    pointerRafId = null;
+    rotateY.value = currentRotateY + (pointerX - startX) * 0.5;
+  });
 };
 
 const onPointerUp = (e: PointerEvent) => {
   if (!isDragging.value) return;
   isDragging.value = false;
-  (e.target as HTMLElement)?.releasePointerCapture(e.pointerId);
+  if (pointerRafId !== null) {
+    cancelAnimationFrame(pointerRafId);
+    pointerRafId = null;
+    rotateY.value = currentRotateY + (e.clientX - startX) * 0.5;
+  }
+  const target = e.currentTarget as HTMLElement;
+  if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
 
   // Optional: Snap to the nearest 72 degrees (since 360 / 5 = 72)
   const anglePerItem = 72;
   rotateY.value = Math.round(rotateY.value / anglePerItem) * anglePerItem;
 };
+
+onUnmounted(() => {
+  if (pointerRafId !== null) cancelAnimationFrame(pointerRafId);
+});
 
 const onWheel = (e: WheelEvent) => {
   // Use scroll up/down to rotate left/right

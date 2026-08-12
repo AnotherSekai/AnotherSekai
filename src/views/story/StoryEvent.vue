@@ -1,28 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
 import axios from "axios";
 import { getRegion } from "@/utils/cookie";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import CommonButton from "@/components/common/CommonButton.vue";
 import StoryEventDetailDialog from "@/components/features/story/StoryEventDetailDialog.vue";
 import LazyImage from "@/components/common/LazyImage.vue";
+import type { EventStory } from "@/utils/story";
 
-
-interface EventStory {
-  id: number;
-  eventId: number;
-  outline: string;
-  bannerGameCharacterUnitId: number;
-  assetbundleName: string;
-}
-
-const events = ref<EventStory[]>([]);
+const events = shallowRef<EventStory[]>([]);
 const isLoading = ref(true);
 const errorMsg = ref("");
 const selectedIndex = ref(0);
 const dialogOpen = ref(false);
 
 const region = getRegion();
+const requestController = new AbortController();
 
 const selectedEvent = computed(() => events.value[selectedIndex.value] || null);
 
@@ -43,16 +36,27 @@ onMounted(async () => {
     const dbSuffix = region === "jp" ? "" : `-${region}`;
     const res = await axios.get<EventStory[]>(
       `/sekai-world/sekai-master-db${dbSuffix}-diff/eventStories.json`,
+      { signal: requestController.signal },
     );
     // Sort events by ID descending so newest are first
-    events.value = res.data.slice().sort((a, b) => b.id - a.id);
+    if (!Array.isArray(res.data)) throw new Error("Invalid event story response.");
+    events.value = res.data
+      .map((event) => ({
+        ...event,
+        eventStoryEpisodes: Array.isArray(event.eventStoryEpisodes) ? event.eventStoryEpisodes : [],
+      }))
+      .sort((a, b) => b.id - a.id);
   } catch (err) {
-    errorMsg.value = "Failed to load story list.";
-    console.error(err);
+    if (!axios.isCancel(err)) {
+      errorMsg.value = "Failed to load story list.";
+      console.error(err);
+    }
   } finally {
     isLoading.value = false;
   }
 });
+
+onUnmounted(() => requestController.abort());
 </script>
 
 <template>
@@ -176,11 +180,7 @@ onMounted(async () => {
     </div>
 
     <!-- Story Event Detail Dialog -->
-    <StoryEventDetailDialog
-      v-if="selectedEvent"
-      :event-id="selectedEvent.eventId"
-      v-model:open="dialogOpen"
-    />
+    <StoryEventDetailDialog v-if="selectedEvent" :event="selectedEvent" v-model:open="dialogOpen" />
   </div>
 </template>
 
@@ -189,13 +189,9 @@ onMounted(async () => {
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 
   /* subtle gray depth behind everything */
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.03),
-    rgba(0, 0, 0, 0.08)
-  );
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.08));
 }
-  
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

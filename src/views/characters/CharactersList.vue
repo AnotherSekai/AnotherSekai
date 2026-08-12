@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
 
 import axios from "axios";
 import LazyImage from "../../components/common/LazyImage.vue";
@@ -20,8 +20,7 @@ const groups = [
   { id: "school_refusal", label: "Nightcord at 25:00" },
 ];
 
-// @ts-ignore
-const selectedGroupId = ref(groups[0].id);
+const selectedGroupId = ref(groups[0]?.id ?? "piapro");
 
 interface SekaiCharacter {
   id: number;
@@ -39,28 +38,34 @@ interface SekaiCharacterUnit {
   colorCode: string;
 }
 
-const allCharacters = ref<SekaiCharacter[]>([]);
+const allCharacters = shallowRef<SekaiCharacter[]>([]);
 const filteredCharacters = computed(() => {
   return allCharacters.value.filter((c) => c.unit === selectedGroupId.value);
 });
+
+const requestController = new AbortController();
 
 onMounted(async () => {
   try {
     const [charRes, unitRes] = await Promise.all([
       axios.get<SekaiCharacter[]>(
         `/sekai-world/sekai-master-db${dbSuffix}-diff/gameCharacters.json`,
+        { signal: requestController.signal },
       ),
       axios.get<SekaiCharacterUnit[]>(
         `/sekai-world/sekai-master-db${dbSuffix}-diff/gameCharacterUnits.json`,
+        { signal: requestController.signal },
       ),
     ]);
 
+    if (!Array.isArray(charRes.data) || !Array.isArray(unitRes.data)) {
+      throw new Error("Invalid character catalog response.");
+    }
+
     // Merge color info from gameCharacterUnits into gameCharacters
-    const colorMap = new Map();
-    if (unitRes.data) {
-      unitRes.data.forEach((u) => {
-        colorMap.set(u.gameCharacterId, u.colorCode);
-      });
+    const colorMap = new Map<number, string>();
+    for (const unit of unitRes.data) {
+      colorMap.set(unit.gameCharacterId, unit.colorCode);
     }
 
     allCharacters.value = charRes.data.map((c) => ({
@@ -74,15 +79,15 @@ onMounted(async () => {
       colorCode: colorMap.get(c.id) || "#33aaee",
     }));
   } catch (error) {
-    console.error("Failed to fetch characters:", error);
+    if (!axios.isCancel(error)) console.error("Failed to fetch characters:", error);
   }
 });
+
+onUnmounted(() => requestController.abort());
 </script>
 
 <template>
-  <BackgroundLayer  :useMask="true">
-
-
+  <BackgroundLayer :useMask="true">
     <SubpageHeader />
 
     <div class="absolute top-16 bottom-8 left-6 right-4 flex z-10">
