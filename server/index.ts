@@ -1,4 +1,5 @@
 import { getLatestGachas, isSupportedRegion } from "./gacha";
+import { getMusicCatalog, isSupportedMusicRegion } from "./music";
 import { getTitleCatalog, isSupportedTitleRegion } from "./titles";
 import {
   getVirtualShowDetail,
@@ -61,6 +62,25 @@ Bun.serve({
       } catch (error) {
         console.error("Failed to load titles:", error);
         return json({ error: "Titles are temporarily unavailable." }, { status: 502 });
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/music") {
+      const region = url.searchParams.get("region") ?? "jp";
+      if (!isSupportedMusicRegion(region)) {
+        return json({ error: "Unsupported region." }, { status: 400 });
+      }
+
+      try {
+        const musics = await getMusicCatalog(region);
+        return json(musics, {
+          headers: {
+            "Cache-Control": "public, max-age=600, stale-while-revalidate=3600",
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load music:", error);
+        return json({ error: "Music is temporarily unavailable." }, { status: 502 });
       }
     }
 

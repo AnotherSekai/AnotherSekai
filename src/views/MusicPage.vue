@@ -36,38 +36,15 @@ const bands = [
 
 const selectedBand = ref("all");
 
-interface SekaiMusicNode {
-  id: number;
-  title: string;
-  lyricist: string;
-  composer: string;
-  assetbundleName: string;
-}
-
-interface SekaiMusicTag {
-  id: number;
-  musicId: number;
-  musicTag: string;
-  seq: number;
-}
-
 export interface UIMusicNode {
   id: number;
   title: string;
   artist: string;
   cover: string;
-  audioSrc: string;
+  audioSrc: string | null;
   tags: string[];
-  level: { number: number; type: string };
   difficulties: Record<string, number>;
   searchText: string;
-}
-
-interface SekaiMusicDifficulty {
-  id: number;
-  musicId: number;
-  musicDifficulty: string;
-  playLevel: number;
 }
 
 const isLoading = ref(true);
@@ -182,82 +159,13 @@ const musicRequestController = new AbortController();
 onMounted(async () => {
   try {
     const region = getCookie("sekai-region", "en");
-    const dbSuffix = region === "jp" ? "" : `-${region}`;
-
-    const [resMusics, resTags, resDiffs] = await Promise.all([
-      axios.get<SekaiMusicNode[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/musics.json`, {
-        signal: musicRequestController.signal,
-      }),
-      axios
-        .get<SekaiMusicTag[]>(`/sekai-world/sekai-master-db${dbSuffix}-diff/musicTags.json`, {
-          signal: musicRequestController.signal,
-        })
-        .catch((error) => {
-          if (axios.isCancel(error)) throw error;
-          return { data: [] as SekaiMusicTag[] };
-        }),
-      axios
-        .get<SekaiMusicDifficulty[]>(
-          `/sekai-world/sekai-master-db${dbSuffix}-diff/musicDifficulties.json`,
-          {
-            signal: musicRequestController.signal,
-          },
-        )
-        .catch((error) => {
-          if (axios.isCancel(error)) throw error;
-          return { data: [] as SekaiMusicDifficulty[] };
-        }),
-    ]);
-
-    if (
-      !Array.isArray(resMusics.data) ||
-      !Array.isArray(resTags.data) ||
-      !Array.isArray(resDiffs.data)
-    ) {
-      throw new Error("Invalid music catalog response.");
-    }
-
-    const tagMap = new Map<number, string[]>();
-    for (const item of resTags.data) {
-      if (!tagMap.has(item.musicId)) {
-        tagMap.set(item.musicId, []);
-      }
-      tagMap.get(item.musicId)!.push(item.musicTag);
-    }
-
-    const diffMap = new Map<number, Record<string, number>>();
-    for (const diff of resDiffs.data) {
-      if (!diffMap.has(diff.musicId)) {
-        diffMap.set(diff.musicId, {});
-      }
-      diffMap.get(diff.musicId)![diff.musicDifficulty] = diff.playLevel;
-    }
-
-    allMusicList.value = resMusics.data.map((item) => {
-      const artist =
-        item.composer !== item.lyricist ? `${item.composer} / ${item.lyricist}` : item.composer;
-      const paddedId = item.id.toString().padStart(4, "0");
-      return {
-        id: item.id,
-        title: item.title,
-        artist,
-        cover: `/storage/sekai-${region}-assets/music/jacket/${item.assetbundleName}/${item.assetbundleName}.webp`,
-        audioSrc: `/storage/sekai-jp-assets/music/short/${paddedId}_01/${paddedId}_01_short.mp3`,
-        tags: tagMap.get(item.id) ?? [],
-        level: {
-          number: Math.floor(Math.random() * 15) + 15,
-          type: Math.random() > 0.5 ? "Orig." : "2D",
-        },
-        difficulties: diffMap.get(item.id) ?? {
-          easy: 0,
-          normal: 0,
-          hard: 0,
-          expert: 0,
-          master: 0,
-        },
-        searchText: `${item.title} ${artist}`.toLowerCase(),
-      };
+    const response = await axios.get<UIMusicNode[]>("/api/music", {
+      params: { region },
+      signal: musicRequestController.signal,
     });
+    if (!Array.isArray(response.data)) throw new Error("Invalid music catalog response.");
+
+    allMusicList.value = response.data;
 
     if (allMusicList.value.length > 0) {
       selectedMusic.value = allMusicList.value[0] ?? null;
@@ -278,10 +186,15 @@ const handleAudioEnded = () => {
   isPlaying.value = false;
 };
 
+const handleAudioError = () => {
+  isPlaying.value = false;
+};
+
 onMounted(() => {
   audio = new Audio();
   audio.preload = "none";
   audio.addEventListener("ended", handleAudioEnded);
+  audio.addEventListener("error", handleAudioError);
 });
 
 watch(selectedMusic, (newMusic) => {
@@ -289,6 +202,12 @@ watch(selectedMusic, (newMusic) => {
   const requestId = ++playRequestId;
   // Stop current, switch track
   audio.pause();
+  isPlaying.value = false;
+  if (!newMusic.audioSrc) {
+    audio.removeAttribute("src");
+    audio.load();
+    return;
+  }
   audio.src = newMusic.audioSrc;
   const isSilent = getCookie("sekai-bgm-silent", "false") === "true";
 
@@ -308,7 +227,7 @@ watch(selectedMusic, (newMusic) => {
 });
 
 const togglePlay = async () => {
-  if (!audio) return;
+  if (!audio || !selectedMusic.value?.audioSrc) return;
   if (audio.paused) {
     try {
       await audio.play();
@@ -328,6 +247,7 @@ onUnmounted(() => {
   if (audio) {
     audio.pause();
     audio.removeEventListener("ended", handleAudioEnded);
+    audio.removeEventListener("error", handleAudioError);
     audio.removeAttribute("src");
     audio.load();
     audio = null;
