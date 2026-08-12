@@ -1,3 +1,5 @@
+import { getDatabaseRoot, getPublicAssetRoot, type Region } from "../utils/region";
+
 interface UpstreamVirtualLiveSchedule {
   id: number;
   seq: number;
@@ -121,7 +123,7 @@ export interface VirtualShowPage {
 }
 
 interface VirtualShowCatalog {
-  region: string;
+  region: Region;
   shows: UpstreamVirtualLive[];
   musicById: Map<number, UpstreamMusic>;
   characterUnitById: Map<number, UpstreamGameCharacterUnit>;
@@ -130,12 +132,8 @@ interface VirtualShowCatalog {
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 20_000;
-const VALID_REGIONS = new Set(["jp", "en", "cn", "tc", "kr"]);
-const cache = new Map<string, { expiresAt: number; data: VirtualShowCatalog }>();
-const pendingRequests = new Map<string, Promise<VirtualShowCatalog>>();
-
-const getDatabaseSuffix = (region: string) => (region === "jp" ? "" : `-${region}`);
-const getPublicAssetRoot = (region: string) => `/storage/sekai-${region}-assets`;
+const cache = new Map<Region, { expiresAt: number; data: VirtualShowCatalog }>();
+const pendingRequests = new Map<Region, Promise<VirtualShowCatalog>>();
 
 const fetchMasterData = async <T>(databaseRoot: string, fileName: string): Promise<T[]> => {
   const response = await fetch(`${databaseRoot}/${fileName}.json`, {
@@ -145,8 +143,8 @@ const fetchMasterData = async <T>(databaseRoot: string, fileName: string): Promi
   return response.json() as Promise<T[]>;
 };
 
-const loadCatalog = async (region: string): Promise<VirtualShowCatalog> => {
-  const databaseRoot = `https://sekai-world.github.io/sekai-master-db${getDatabaseSuffix(region)}-diff`;
+const loadCatalog = async (region: Region): Promise<VirtualShowCatalog> => {
+  const databaseRoot = getDatabaseRoot(region);
   const [shows, musics, characterUnits, characters] = await Promise.all([
     fetchMasterData<UpstreamVirtualLive>(databaseRoot, "virtualLives"),
     fetchMasterData<UpstreamMusic>(databaseRoot, "musics"),
@@ -163,7 +161,7 @@ const loadCatalog = async (region: string): Promise<VirtualShowCatalog> => {
   };
 };
 
-const getCachedCatalog = async (region: string): Promise<VirtualShowCatalog> => {
+const getCachedCatalog = async (region: Region): Promise<VirtualShowCatalog> => {
   const cached = cache.get(region);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
 
@@ -181,7 +179,7 @@ const getCachedCatalog = async (region: string): Promise<VirtualShowCatalog> => 
   return request;
 };
 
-const getCatalog = async (region: string): Promise<VirtualShowCatalog> => {
+const getCatalog = async (region: Region): Promise<VirtualShowCatalog> => {
   try {
     return await getCachedCatalog(region);
   } catch (error) {
@@ -214,7 +212,7 @@ const getNextScheduleAt = (show: UpstreamVirtualLive, now: number) =>
 
 const toSummary = (
   show: UpstreamVirtualLive,
-  region: string,
+  region: Region,
   now: number,
 ): VirtualShowSummary => {
   const assetRoot = getPublicAssetRoot(region);
@@ -234,10 +232,8 @@ const toSummary = (
   };
 };
 
-export const isSupportedVirtualShowRegion = (region: string) => VALID_REGIONS.has(region);
-
 export const getVirtualShows = async (
-  region: string,
+  region: Region,
   scope: "active" | "archive",
   page: number,
   pageSize: number,
@@ -271,7 +267,7 @@ export const getVirtualShows = async (
 };
 
 export const getVirtualShowDetail = async (
-  region: string,
+  region: Region,
   id: number,
 ): Promise<VirtualShowDetail | null> => {
   const catalog = await getCatalog(region);

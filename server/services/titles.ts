@@ -1,3 +1,5 @@
+import { getDatabaseRoot, getPublicAssetRoot, type Region } from "../utils/region";
+
 interface UpstreamHonorLevel {
   assetbundleName?: string;
   honorRarity?: string;
@@ -61,20 +63,15 @@ export interface KizunaTitleSummary {
 }
 
 export interface TitleCatalog {
-  region: string;
+  region: Region;
   kizuna: KizunaTitleSummary[];
   others: OtherTitleSummary[];
 }
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 20_000;
-const VALID_REGIONS = new Set(["jp", "en", "cn", "tc", "kr"]);
-
-const cache = new Map<string, { expiresAt: number; data: TitleCatalog }>();
-const pendingRequests = new Map<string, Promise<TitleCatalog>>();
-
-const getDatabaseSuffix = (region: string) => (region === "jp" ? "" : `-${region}`);
-const getPublicAssetRoot = (region: string) => `/storage/sekai-${region}-assets`;
+const cache = new Map<Region, { expiresAt: number; data: TitleCatalog }>();
+const pendingRequests = new Map<Region, Promise<TitleCatalog>>();
 
 const fetchMasterData = async <T>(databaseRoot: string, fileName: string): Promise<T[]> => {
   const response = await fetch(`${databaseRoot}/${fileName}.json`, {
@@ -126,8 +123,8 @@ const getOtherPreview = (
   return { baseImageUrl, overlayImageUrl };
 };
 
-const loadTitleCatalog = async (region: string): Promise<TitleCatalog> => {
-  const databaseRoot = `https://sekai-world.github.io/sekai-master-db${getDatabaseSuffix(region)}-diff`;
+const loadTitleCatalog = async (region: Region): Promise<TitleCatalog> => {
+  const databaseRoot = getDatabaseRoot(region);
   const assetRoot = getPublicAssetRoot(region);
   const [honors, groups, bondsHonors, bondsHonorWords, characterUnits] = await Promise.all([
     fetchMasterData<UpstreamHonor>(databaseRoot, "honors"),
@@ -193,7 +190,7 @@ const loadTitleCatalog = async (region: string): Promise<TitleCatalog> => {
   return { region, kizuna, others };
 };
 
-const getCachedTitleCatalog = async (region: string): Promise<TitleCatalog> => {
+const getCachedTitleCatalog = async (region: Region): Promise<TitleCatalog> => {
   const cached = cache.get(region);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
 
@@ -211,9 +208,7 @@ const getCachedTitleCatalog = async (region: string): Promise<TitleCatalog> => {
   return request;
 };
 
-export const isSupportedTitleRegion = (region: string) => VALID_REGIONS.has(region);
-
-export const getTitleCatalog = async (region: string): Promise<TitleCatalog> => {
+export const getTitleCatalog = async (region: Region): Promise<TitleCatalog> => {
   try {
     return await getCachedTitleCatalog(region);
   } catch (error) {

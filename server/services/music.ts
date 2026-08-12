@@ -1,3 +1,5 @@
+import { getDatabaseRoot, getPublicAssetRoot, type Region } from "../utils/region";
+
 interface UpstreamMusic {
   id: number;
   title: string;
@@ -35,11 +37,11 @@ export interface MusicSummary {
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 20_000;
-const VALID_REGIONS = new Set(["jp", "en", "cn", "tc", "kr"]);
-
 // These songs only exist on the indicated regional asset server. Other localized
 // catalogs still use the JP audio assets, matching sekai-viewer's music resolver.
-const REGION_EXCLUSIVE_MUSIC_IDS: Readonly<Record<string, ReadonlySet<number>>> = {
+const REGION_EXCLUSIVE_MUSIC_IDS: Readonly<
+  Partial<Record<Region, ReadonlySet<number>>>
+> = {
   en: new Set([
     371, 387, 419, 420, 445, 453, 459, 464, 479, 502, 514, 528, 535, 552, 563, 568, 598,
     599, 602, 609, 640, 657, 673, 690, 694, 701, 725, 736, 762, 786,
@@ -56,11 +58,8 @@ const REGION_EXCLUSIVE_MUSIC_IDS: Readonly<Record<string, ReadonlySet<number>>> 
   ]),
 };
 
-const cache = new Map<string, { expiresAt: number; data: MusicSummary[] }>();
-const pendingRequests = new Map<string, Promise<MusicSummary[]>>();
-
-const getDatabaseSuffix = (region: string) => (region === "jp" ? "" : `-${region}`);
-const getPublicAssetRoot = (region: string) => `/storage/sekai-${region}-assets`;
+const cache = new Map<Region, { expiresAt: number; data: MusicSummary[] }>();
+const pendingRequests = new Map<Region, Promise<MusicSummary[]>>();
 
 const fetchMasterData = async <T>(databaseRoot: string, fileName: string): Promise<T[]> => {
   const response = await fetch(`${databaseRoot}/${fileName}.json`, {
@@ -73,13 +72,13 @@ const fetchMasterData = async <T>(databaseRoot: string, fileName: string): Promi
   return data as T[];
 };
 
-const getAudioAssetRegion = (musicId: number, region: string) =>
+const getAudioAssetRegion = (musicId: number, region: Region): Region =>
   REGION_EXCLUSIVE_MUSIC_IDS[region]?.has(musicId) ? region : "jp";
 
 export const getMusicAudioUrl = (
   musicId: number,
   vocalAssetbundleName: string | undefined,
-  region: string,
+  region: Region,
 ) => {
   if (!vocalAssetbundleName) return null;
 
@@ -87,8 +86,8 @@ export const getMusicAudioUrl = (
   return `${assetRoot}/music/short/${vocalAssetbundleName}/${vocalAssetbundleName}_short.mp3`;
 };
 
-const loadMusicCatalog = async (region: string): Promise<MusicSummary[]> => {
-  const databaseRoot = `https://sekai-world.github.io/sekai-master-db${getDatabaseSuffix(region)}-diff`;
+const loadMusicCatalog = async (region: Region): Promise<MusicSummary[]> => {
+  const databaseRoot = getDatabaseRoot(region);
   const [musics, tags, difficulties, vocals] = await Promise.all([
     fetchMasterData<UpstreamMusic>(databaseRoot, "musics"),
     fetchMasterData<UpstreamMusicTag>(databaseRoot, "musicTags"),
@@ -138,7 +137,7 @@ const loadMusicCatalog = async (region: string): Promise<MusicSummary[]> => {
   });
 };
 
-const getCachedMusicCatalog = async (region: string): Promise<MusicSummary[]> => {
+const getCachedMusicCatalog = async (region: Region): Promise<MusicSummary[]> => {
   const cached = cache.get(region);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
 
@@ -156,9 +155,7 @@ const getCachedMusicCatalog = async (region: string): Promise<MusicSummary[]> =>
   return request;
 };
 
-export const isSupportedMusicRegion = (region: string) => VALID_REGIONS.has(region);
-
-export const getMusicCatalog = async (region: string): Promise<MusicSummary[]> => {
+export const getMusicCatalog = async (region: Region): Promise<MusicSummary[]> => {
   try {
     return await getCachedMusicCatalog(region);
   } catch (error) {

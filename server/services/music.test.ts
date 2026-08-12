@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { getMusicAudioUrl } from "./music";
 
-describe("getMusicAudioUrl", () => {
+describe("music audio URL", () => {
   test("uses the vocal asset bundle instead of deriving a path from the music id", () => {
     expect(getMusicAudioUrl(18, "0018_02", "en")).toBe(
       "/storage/sekai-jp-assets/music/short/0018_02/0018_02_short.mp3",

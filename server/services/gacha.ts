@@ -1,3 +1,10 @@
+import {
+  getAssetOrigin,
+  getDatabaseRoot,
+  getPublicAssetRoot,
+  type Region,
+} from "../utils/region";
+
 interface UpstreamGacha {
   id: number;
   name: string;
@@ -17,10 +24,8 @@ const GACHA_TAIL_BYTES = 1024 * 1024;
 const PARSE_CANDIDATE_LIMIT = 32;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
-const VALID_REGIONS = new Set(["jp", "en", "cn", "tc", "kr"]);
-
-const cache = new Map<string, { expiresAt: number; data: GachaSummary[] }>();
-const pendingRequests = new Map<string, Promise<GachaSummary[]>>();
+const cache = new Map<Region, { expiresAt: number; data: GachaSummary[] }>();
+const pendingRequests = new Map<Region, Promise<GachaSummary[]>>();
 
 const parseObjectsFromJsonTail = (source: string, limit: number): unknown[] => {
   const records: unknown[] = [];
@@ -77,13 +82,9 @@ const isUpstreamGacha = (value: unknown): value is UpstreamGacha => {
   );
 };
 
-const getDatabaseSuffix = (region: string) => (region === "jp" ? "" : `-${region}`);
-const getAssetOrigin = (region: string) => `https://storage.sekai.best/sekai-${region}-assets`;
-const getPublicAssetRoot = (region: string) => `/storage/sekai-${region}-assets`;
-
-const fetchGachaCatalogTail = async (region: string) => {
+const fetchGachaCatalogTail = async (region: Region) => {
   const response = await fetch(
-    `https://sekai-world.github.io/sekai-master-db${getDatabaseSuffix(region)}-diff/gachas.json`,
+    `${getDatabaseRoot(region)}/gachas.json`,
     {
       headers: {
         Range: `bytes=-${GACHA_TAIL_BYTES}`,
@@ -101,7 +102,7 @@ const fetchGachaCatalogTail = async (region: string) => {
   return response.text();
 };
 
-const fetchBackgroundUrl = async (gacha: UpstreamGacha, region: string) => {
+const fetchBackgroundUrl = async (gacha: UpstreamGacha, region: Region) => {
   const prefix = `gacha/${gacha.assetbundleName}/screen/texture/`;
   const params = new URLSearchParams({
     "list-type": "2",
@@ -121,7 +122,7 @@ const fetchBackgroundUrl = async (gacha: UpstreamGacha, region: string) => {
   return backgroundKey ? `${getPublicAssetRoot(region)}/${backgroundKey}` : "";
 };
 
-const loadLatestGachas = async (region: string): Promise<GachaSummary[]> => {
+const loadLatestGachas = async (region: Region): Promise<GachaSummary[]> => {
   const now = Date.now();
   const source = await fetchGachaCatalogTail(region);
   const latest = parseObjectsFromJsonTail(source, PARSE_CANDIDATE_LIMIT)
@@ -154,9 +155,7 @@ const loadLatestGachas = async (region: string): Promise<GachaSummary[]> => {
   );
 };
 
-export const isSupportedRegion = (region: string) => VALID_REGIONS.has(region);
-
-export const getLatestGachas = async (region: string): Promise<GachaSummary[]> => {
+export const getLatestGachas = async (region: Region): Promise<GachaSummary[]> => {
   const cached = cache.get(region);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
 
