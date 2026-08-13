@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { routeRequest } from "./router";
 
-const frontendDirectory = fileURLToPath(new URL("../dist/frontend/", import.meta.url));
+const frontendDirectory = fileURLToPath(new URL("./frontend/", import.meta.url));
 const frontendIndex = Bun.file(`${frontendDirectory}/index.html`);
 
 interface ProxyTarget {

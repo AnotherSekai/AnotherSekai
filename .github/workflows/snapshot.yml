@@ -1,39 +1,26 @@
-name: Build snapshots
+name: Build latest snapshot
 
 on:
   push:
+    branches: [main]
 
 permissions:
   contents: write
 
+concurrency:
+  group: snapshot-latest
+  cancel-in-progress: true
+
 jobs:
-  commits:
-    name: Find pushed commits
-    runs-on: ubuntu-latest
-    outputs:
-      shas: ${{ steps.collect.outputs.shas }}
-
-    steps:
-      - id: collect
-        name: Collect commit SHAs
-        run: |
-          shas=$(jq -c 'if (.commits | length) == 0 then [.after] else [.commits[].id] end' "$GITHUB_EVENT_PATH")
-          echo "shas=$shas" >> "$GITHUB_OUTPUT"
-
   build-and-publish:
-    name: Build snapshot ${{ matrix.commit }}
-    needs: commits
+    name: Build latest snapshot
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        commit: ${{ fromJSON(needs.commits.outputs.shas) }}
 
     steps:
       - name: Check out commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.commit }}
+          ref: ${{ github.sha }}
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -47,24 +34,34 @@ jobs:
         run: bun run build
 
       - name: Create snapshot archive
-        env:
-          COMMIT_SHA: ${{ matrix.commit }}
-        run: tar -C dist -czf "another-sekai-snapshot-${COMMIT_SHA}.tar.gz" .
+        run: tar -C dist -czf "AnotherSekai.tar.gz" .
 
       - name: Upload snapshot artifact
         uses: actions/upload-artifact@v4
         with:
-          name: another-sekai-snapshot-${{ matrix.commit }}
-          path: another-sekai-snapshot-${{ matrix.commit }}.tar.gz
+          name: AnotherSekai-${{ github.sha }}
+          path: AnotherSekai.tar.gz
+          retention-days: 14
           if-no-files-found: error
 
+      - name: Move snapshot tag to this commit
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          git tag --force snapshot-latest "$COMMIT_SHA"
+          git push --force origin refs/tags/snapshot-latest
+
       - name: Publish snapshot release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: snapshot-${{ matrix.commit }}
-          target_commitish: ${{ matrix.commit }}
-          name: Snapshot ${{ matrix.commit }}
-          body: Automated portable snapshot build for commit ${{ matrix.commit }}.
+          tag_name: snapshot-latest
+          target_commitish: ${{ github.sha }}
+          name: Latest snapshot
+          body: |
+            Latest automated snapshot build.
+
+            Commit: ${{ github.sha }}
           prerelease: true
-          files: another-sekai-snapshot-${{ matrix.commit }}.tar.gz
+          files: AnotherSekai.tar.gz
+          overwrite_files: true
           fail_on_unmatched_files: true
