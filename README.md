@@ -1,6 +1,22 @@
+<img src="https://github.com/AnotherSekai.png" alt="Another Sekai icon" width="128" height="128" align="right">
+
 <h1>Another Sekai</h1>
 
 🌟Another [Sekai Viewer](https://sekai.best/) client in your browser!
+
+## Usage for everyone
+
+AnotherSekai is using Bun, so make sure you have it before entering sekai Here are [official Bun installation guide](https://bun.sh/docs/installation)
+
+Okay so you have bun now.
+
+Download and extract a prebuilt bundle from [releases](https://github.com/AnotherSekai/AnotherSekai/releases), then run:
+
+```sh
+bun server.js
+```
+
+Finally, open AnotherSekai in your browser(default is `http://localhost:9000`). Wonderhoy!
 
 ## Development
 
