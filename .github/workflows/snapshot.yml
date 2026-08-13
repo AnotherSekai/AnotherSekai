@@ -1,0 +1,70 @@
+name: Build snapshots
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  commits:
+    name: Find pushed commits
+    runs-on: ubuntu-latest
+    outputs:
+      shas: ${{ steps.collect.outputs.shas }}
+
+    steps:
+      - id: collect
+        name: Collect commit SHAs
+        run: |
+          shas=$(jq -c 'if (.commits | length) == 0 then [.after] else [.commits[].id] end' "$GITHUB_EVENT_PATH")
+          echo "shas=$shas" >> "$GITHUB_OUTPUT"
+
+  build-and-publish:
+    name: Build snapshot ${{ matrix.commit }}
+    needs: commits
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        commit: ${{ fromJSON(needs.commits.outputs.shas) }}
+
+    steps:
+      - name: Check out commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.commit }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build portable distribution
+        run: bun run build
+
+      - name: Create snapshot archive
+        env:
+          COMMIT_SHA: ${{ matrix.commit }}
+        run: tar -C dist -czf "another-sekai-snapshot-${COMMIT_SHA}.tar.gz" .
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: another-sekai-snapshot-${{ matrix.commit }}
+          path: another-sekai-snapshot-${{ matrix.commit }}.tar.gz
+          if-no-files-found: error
+
+      - name: Publish snapshot release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: snapshot-${{ matrix.commit }}
+          target_commitish: ${{ matrix.commit }}
+          name: Snapshot ${{ matrix.commit }}
+          body: Automated portable snapshot build for commit ${{ matrix.commit }}.
+          prerelease: true
+          files: another-sekai-snapshot-${{ matrix.commit }}.tar.gz
+          fail_on_unmatched_files: true
