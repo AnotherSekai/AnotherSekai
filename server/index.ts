@@ -1,10 +1,10 @@
-import { routeRequest } from "./router";
+import { handleApplicationRequest } from "./app";
 
 const port = Number(process.env.API_PORT ?? process.env.GACHA_API_PORT ?? 9000);
 
 const server = Bun.serve({
   port,
-  fetch: routeRequest,
+  fetch: handleApplicationRequest,
 });
 
-console.log(`API listening on http://localhost:${server.port}`);
+console.log(`Another SEKAI listening on http://localhost:${server.port}`);

@@ -9,7 +9,10 @@
     "dev:api": "bun --watch server/index.ts",
     "dev:web": "vite",
     "start:api": "bun server/index.ts",
-    "build": "vite build",
+    "start": "bun dist/server.js",
+    "build": "bun run build:web && bun run build:server",
+    "build:web": "vite build",
+    "build:server": "bun build ./server/index.ts --target=bun --outfile ./dist/server.js",
     "preview": "vite preview"
   },
   "packageManager": "bun@1.3.14",
