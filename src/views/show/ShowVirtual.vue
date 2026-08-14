@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { CalendarDays, History, Radio, RefreshCw, Sparkles, UsersRound } from "@lucide/vue";
 import ShowLayout from "@/components/layout/SubLayout.vue";
 import VirtualShowDetailDialog from "@/components/features/show/VirtualShowDetailDialog.vue";
+import CommonTabs from "@/components/common/CommonTabs.vue";
 import { getRegion } from "@/utils/cookie";
 import {
   fetchVirtualShows,
@@ -24,6 +25,11 @@ const errorMessage = ref("");
 const failedPrimaryImages = ref(new Set<number>());
 const failedImages = ref(new Set<number>());
 let requestId = 0;
+
+const scopeOptions = [
+  { value: "active", label: "Current", icon: Sparkles },
+  { value: "archive", label: "Archive", icon: History },
+] as const;
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
@@ -116,39 +122,13 @@ onMounted(() => loadShows());
           </span>
         </div>
 
-        <div
-          class="mb-4 grid grid-cols-2 gap-1 rounded-full border border-white/15 bg-[#202d54]/55 p-1 shadow-inner backdrop-blur-md"
+        <CommonTabs
+          :model-value="scope"
+          :options="scopeOptions"
+          class="mb-4"
           aria-label="Virtual show filters"
-        >
-          <button
-            type="button"
-            class="flex items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 active:scale-[0.98]"
-            :class="
-              scope === 'active'
-                ? 'bg-cyan-200 text-[#17213f] shadow-md'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            "
-            :aria-pressed="scope === 'active'"
-            @click="selectScope('active')"
-          >
-            <Sparkles class="h-4 w-4" :stroke-width="2" />
-            Current
-          </button>
-          <button
-            type="button"
-            class="flex items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 active:scale-[0.98]"
-            :class="
-              scope === 'archive'
-                ? 'bg-cyan-200 text-[#17213f] shadow-md'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            "
-            :aria-pressed="scope === 'archive'"
-            @click="selectScope('archive')"
-          >
-            <History class="h-4 w-4" :stroke-width="2" />
-            Archive
-          </button>
-        </div>
+          @update:model-value="selectScope"
+        />
       </div>
 
       <div

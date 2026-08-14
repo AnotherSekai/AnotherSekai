@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { CalendarDays, RefreshCw, Sparkles } from "@lucide/vue";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
+import CommonTabs from "@/components/common/CommonTabs.vue";
 import { Button } from "@/components/ui/button";
 import { getRegion } from "@/utils/cookie";
 import {
@@ -115,26 +116,14 @@ onMounted(loadGachas);
       </div>
     </SubpageHeader>
 
-    <div
+    <CommonTabs
+      :model-value="activeFilter"
+      :options="filterOptions"
       aria-label="Gacha type"
-      class="fixed right-16 top-3 z-[60] grid grid-cols-3 gap-1 rounded-full border border-white/15 bg-[#202d54]/55 p-1 shadow-inner backdrop-blur-md sm:right-20"
-    >
-      <button
-        v-for="filter in filterOptions"
-        :key="filter.value"
-        type="button"
-        class="flex items-center justify-center whitespace-nowrap rounded-full px-2 py-2 text-[10px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 active:scale-[0.98] sm:px-3 sm:text-xs"
-        :class="
-          activeFilter === filter.value
-            ? 'bg-cyan-200 text-[#17213f] shadow-md'
-            : 'text-white/70 hover:bg-white/10 hover:text-white'
-        "
-        :aria-pressed="activeFilter === filter.value"
-        @click="selectFilter(filter.value)"
-      >
-        {{ filter.label }}
-      </button>
-    </div>
+      compact
+      class="fixed right-16 top-3 z-[60] sm:right-20"
+      @update:model-value="selectFilter"
+    />
 
     <section
       v-if="isLoading"
