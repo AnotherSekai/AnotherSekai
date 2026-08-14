@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { CalendarDays, RefreshCw, Sparkles } from "@lucide/vue";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
-import CommonButton from "@/components/common/CommonButton.vue";
+import { Button } from "@/components/ui/button";
 import { getRegion } from "@/utils/cookie";
 import {
   fetchLatestGachas,
@@ -171,10 +171,10 @@ onMounted(loadGachas);
       >
         <p class="text-lg font-black">Gacha data is unavailable</p>
         <p class="mt-2 text-sm leading-6 text-white/70">{{ errorMessage }}</p>
-        <CommonButton class="mx-auto mt-5 gap-2" color="teal" size="sm" @click="loadGachas">
+        <Button class="mx-auto mt-5 gap-2" variant="teal" size="sm" @click="loadGachas">
           <RefreshCw class="h-4 w-4" />
           Retry
-        </CommonButton>
+        </Button>
       </div>
     </section>
 

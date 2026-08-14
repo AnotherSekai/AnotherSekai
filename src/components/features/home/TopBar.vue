@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { Globe, Music, Plus, Zap, Settings, Menu, Diamond } from "@lucide/vue";
-import CommonButton from "@/components/common/CommonButton.vue";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -52,11 +51,11 @@ const saveData = () => {
   <header class="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3">
     <!-- Left: Location -->
     <div class="flex items-center gap-2">
-      <RouterLink to="/worldmap">
-        <CommonButton type="icon" color="white">
+      <Button as-child variant="glass" size="icon-lg">
+        <RouterLink to="/worldmap" aria-label="Open world map">
           <Globe class="h-5 w-5" />
-        </CommonButton>
-      </RouterLink>
+        </RouterLink>
+      </Button>
       <div
         class="flex items-center gap-1.5 bg-primary/40 backdrop-blur-md rounded-full px-3.5 py-2 shadow-lg"
       >
@@ -157,9 +156,14 @@ const saveData = () => {
       </div>
 
       <!-- Menu -->
-      <CommonButton type="icon" color="white" @click="emit('open-menu')">
+      <Button
+        variant="glass"
+        size="icon-lg"
+        aria-label="Open menu"
+        @click="emit('open-menu')"
+      >
         <Menu class="h-5 w-5" />
-      </CommonButton>
+      </Button>
     </div>
   </header>
 </template>

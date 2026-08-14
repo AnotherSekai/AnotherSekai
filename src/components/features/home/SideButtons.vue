@@ -31,8 +31,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-import CommonButton from "@/components/common/CommonButton.vue";
-
 type TitleTab = "kizuna" | "others";
 
 interface OtherTitle {
@@ -249,16 +247,21 @@ function applyLive2D() {
 <template>
   <div class="absolute right-2.5 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2.5">
     <!-- Music Toggler -->
-    <CommonButton type="icon" @click="toggleBgm">
+    <Button
+      variant="glass"
+      size="icon-lg"
+      :aria-label="isSilent ? 'Play background music' : 'Mute background music'"
+      @click="toggleBgm"
+    >
       <VolumeX v-if="isSilent" class="h-5 w-5" />
       <Volume2 v-else class="h-5 w-5" />
-    </CommonButton>
+    </Button>
 
     <Dialog v-model:open="isDialogOpen">
       <DialogTrigger as-child>
-        <CommonButton type="icon">
+        <Button variant="glass" size="icon-lg" aria-label="Choose Live2D model">
           <User class="h-5 w-5" />
-        </CommonButton>
+        </Button>
       </DialogTrigger>
       <DialogContent
         class="z-[200] max-w-4xl h-[min(82vh,760px)] flex flex-col p-0 gap-0 overflow-hidden"
@@ -421,9 +424,9 @@ function applyLive2D() {
     <!-- Titles list -->
     <Dialog v-model:open="titleDialogOpen">
       <DialogTrigger as-child>
-        <CommonButton type="icon" aria-label="View all titles">
+        <Button variant="glass" size="icon-lg" aria-label="View all titles">
           <ListOrdered class="h-5 w-5" />
-        </CommonButton>
+        </Button>
       </DialogTrigger>
 
       <DialogContent

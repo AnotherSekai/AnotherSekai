@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
 import axios from "axios";
 import { getRegion } from "@/utils/cookie";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
-import CommonButton from "@/components/common/CommonButton.vue";
+import { Button } from "@/components/ui/button";
 import StoryEventDetailDialog from "@/components/features/story/StoryEventDetailDialog.vue";
 import LazyImage from "@/components/common/LazyImage.vue";
 import type { EventStory } from "@/utils/story";
@@ -165,15 +165,14 @@ onUnmounted(() => requestController.abort());
 
           <!-- Select Button -->
           <div class="pointer-events-auto">
-            <CommonButton
+            <Button
               v-if="selectedEvent"
-              type="text"
-              color="teal"
+              variant="teal"
               size="lg"
               @click="dialogOpen = true"
             >
               Select
-            </CommonButton>
+            </Button>
           </div>
         </div>
       </div>

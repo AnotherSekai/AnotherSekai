@@ -20,7 +20,7 @@ import axios from "axios";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import LazyImage from "@/components/common/LazyImage.vue";
 import { getCookie } from "@/utils/cookie";
-import CommonButton from "@/components/common/CommonButton.vue";
+import { Button } from "@/components/ui/button";
 
 // Sidebar filters
 const bands = [
@@ -491,7 +491,7 @@ onUnmounted(() => {
               </div>
 
               <!-- Actions -->
-              <CommonButton type="text" color="teal" size="md"> Select </CommonButton>
+              <Button variant="teal"> Select </Button>
 
               <hr />
 

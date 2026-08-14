@@ -10,6 +10,10 @@ export const buttonVariants = cva(
       variant: {
         default:
           "bg-teal-300 text-teal-950 hover:bg-teal-200",
+        teal:
+          "bg-teal-300 text-teal-950 font-black tracking-widest shadow-lg hover:bg-teal-200 hover:scale-105 active:scale-95",
+        glass:
+          "border border-white/20 bg-white/80 text-primary font-black tracking-widest shadow-lg backdrop-blur-md hover:bg-teal/40 hover:scale-[1.02] active:scale-[0.98]",
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
@@ -33,6 +37,14 @@ export const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
+    compoundVariants: [
+      {
+        variant: "glass",
+        size: "icon-lg",
+        class:
+          "border-0 bg-white/60 shadow-black/10 hover:bg-white/30 hover:scale-100 active:scale-100",
+      },
+    ],
   },
 )
 export type ButtonVariants = VariantProps<typeof buttonVariants>

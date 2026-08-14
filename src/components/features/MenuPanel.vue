@@ -2,7 +2,6 @@
 import { X, Globe, Image as ImageIcon, Bug } from "@lucide/vue";
 import { ref, watch } from "vue";
 import { getCookie, setCookie } from "../../utils/cookie";
-import CommonButton from "../common/CommonButton.vue";
 import {
   Dialog,
   DialogContent,
@@ -99,15 +98,15 @@ function switchBg(bg: string) {
             <span class="text-xs font-black text-gray-700 tracking-wide">REGION</span>
           </div>
           <div class="flex gap-2 w-full">
-            <CommonButton
+            <Button
               v-for="r in regions"
               :key="r"
               size="sm"
-              :color="currentRegion === r ? 'teal' : 'white'"
+              :variant="currentRegion === r ? 'teal' : 'glass'"
               @click="switchRegion(r)"
             >
               {{ r }}
-            </CommonButton>
+            </Button>
           </div>
         </div>
 
@@ -144,7 +143,7 @@ function switchBg(bg: string) {
         <!-- Debug Cookies Button -->
         <Dialog >
           <DialogTrigger as-child>
-            <Button color="white" type="text" class="w-full" @click="updateCookies">
+            <Button variant="glass" class="w-full" @click="updateCookies">
               <Bug class="w-4 h-4" />
               DEBUG COOKIES
             </Button>
