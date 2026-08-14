@@ -4,16 +4,34 @@ import { CalendarDays, RefreshCw, Sparkles } from "@lucide/vue";
 import SubpageHeader from "@/components/layout/SubpageHeader.vue";
 import CommonButton from "@/components/common/CommonButton.vue";
 import { getRegion } from "@/utils/cookie";
-import { fetchLatestGachas, type GachaSummary } from "@/utils/gacha";
+import {
+  fetchLatestGachas,
+  type GachaCategory,
+  type GachaSummary,
+} from "@/utils/gacha";
+
+type GachaFilter = GachaCategory | "all";
 
 const region = getRegion();
 const gachas = ref<GachaSummary[]>([]);
+const activeFilter = ref<GachaFilter>("all");
 const selectedIndex = ref(0);
 const isLoading = ref(true);
 const errorMessage = ref("");
-const failedBannerIds = ref(new Set<number>());
+const failedBannerIds = ref(new Set<string>());
 
-const selectedGacha = computed(() => gachas.value[selectedIndex.value] ?? null);
+const filterOptions: ReadonlyArray<{ value: GachaFilter; label: string }> = [
+  { value: "gacha", label: "Gacha" },
+  { value: "event", label: "Event Gacha" },
+  { value: "all", label: "All" },
+];
+
+const filteredGachas = computed(() =>
+  activeFilter.value === "all"
+    ? gachas.value
+    : gachas.value.filter((gacha) => gacha.category === activeFilter.value),
+);
+const selectedGacha = computed(() => filteredGachas.value[selectedIndex.value] ?? null);
 const displayedBackgroundUrl = computed(() => selectedGacha.value?.backgroundUrl ?? "");
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -35,8 +53,15 @@ const selectGacha = (index: number) => {
   selectedIndex.value = index;
 };
 
-const markBannerFailed = (gachaId: number) => {
-  failedBannerIds.value = new Set(failedBannerIds.value).add(gachaId);
+const itemKey = (gacha: GachaSummary) => `${gacha.category}:${gacha.id}`;
+
+const selectFilter = (filter: GachaFilter) => {
+  activeFilter.value = filter;
+  selectedIndex.value = 0;
+};
+
+const markBannerFailed = (gacha: GachaSummary) => {
+  failedBannerIds.value = new Set(failedBannerIds.value).add(itemKey(gacha));
 };
 
 const loadGachas = async () => {
@@ -49,8 +74,10 @@ const loadGachas = async () => {
     selectedIndex.value = 0;
   } catch (error) {
     errorMessage.value =
-      error instanceof Error ? error.message : "The latest gachas could not be loaded.";
-    console.error("Failed to load the latest gachas:", error);
+      error instanceof Error
+        ? error.message
+        : "The latest gachas and events could not be loaded.";
+    console.error("Failed to load the latest gachas and events:", error);
   } finally {
     isLoading.value = false;
   }
@@ -88,9 +115,30 @@ onMounted(loadGachas);
       </div>
     </SubpageHeader>
 
+    <div
+      aria-label="Gacha type"
+      class="fixed right-16 top-3 z-[60] grid grid-cols-3 gap-1 rounded-full border border-white/15 bg-[#202d54]/55 p-1 shadow-inner backdrop-blur-md sm:right-20"
+    >
+      <button
+        v-for="filter in filterOptions"
+        :key="filter.value"
+        type="button"
+        class="flex items-center justify-center whitespace-nowrap rounded-full px-2 py-2 text-[10px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 active:scale-[0.98] sm:px-3 sm:text-xs"
+        :class="
+          activeFilter === filter.value
+            ? 'bg-cyan-200 text-[#17213f] shadow-md'
+            : 'text-white/70 hover:bg-white/10 hover:text-white'
+        "
+        :aria-pressed="activeFilter === filter.value"
+        @click="selectFilter(filter.value)"
+      >
+        {{ filter.label }}
+      </button>
+    </div>
+
     <section
       v-if="isLoading"
-      aria-label="Loading gachas"
+      aria-label="Loading gachas and events"
       class="absolute inset-x-4 top-16 bottom-5 z-20 flex gap-5 sm:inset-x-6 sm:bottom-8"
     >
       <div
@@ -131,22 +179,22 @@ onMounted(loadGachas);
     </section>
 
     <section
-      v-else-if="gachas.length"
+      v-else-if="filteredGachas.length"
       class="absolute inset-x-3 top-16 bottom-3 z-20 flex min-h-0 flex-col gap-3 sm:inset-x-6 sm:bottom-7 sm:flex-row sm:gap-5"
     >
       <aside
-        aria-label="Latest gachas"
-        class="relative shrink-0 rounded-2xl border border-white/20 bg-[#0d1d31]/42 p-3 shadow-2xl backdrop-blur-xl sm:w-[clamp(220px,22vw,310px)] sm:p-4"
+        aria-label="Latest gachas and events"
+        class="relative min-h-0 shrink-0 rounded-2xl border border-white/20 bg-[#0d1d31]/42 p-3 shadow-2xl backdrop-blur-xl sm:w-[clamp(220px,22vw,310px)] sm:p-4"
       >
         <div
           class="pointer-events-none absolute inset-2 rounded-xl border-2 border-dashed border-white/20"
         ></div>
         <div
-          class="relative flex gap-3 overflow-x-auto p-1 sm:h-full sm:flex-col sm:overflow-x-hidden sm:overflow-y-auto sm:p-2 gacha-scrollbar"
+          class="relative flex min-h-0 gap-3 overflow-x-auto p-1 sm:h-full sm:flex-col sm:overflow-x-hidden sm:overflow-y-auto sm:p-2 gacha-scrollbar"
         >
           <button
-            v-for="(gacha, index) in gachas"
-            :key="gacha.id"
+            v-for="(gacha, index) in filteredGachas"
+            :key="itemKey(gacha)"
             type="button"
             class="group relative aspect-[21/9] w-[190px] shrink-0 overflow-hidden rounded-xl border-[3px] bg-[#172b42] text-left shadow-lg outline-none transition duration-300 focus-visible:ring-2 focus-visible:ring-cyan-200 sm:w-full"
             :class="
@@ -159,12 +207,12 @@ onMounted(loadGachas);
             @click="selectGacha(index)"
           >
             <img
-              v-if="!failedBannerIds.has(gacha.id)"
+              v-if="!failedBannerIds.has(itemKey(gacha))"
               :src="gacha.bannerUrl"
               :alt="gacha.name"
               loading="lazy"
               class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
-              @error="markBannerFailed(gacha.id)"
+              @error="markBannerFailed(gacha)"
             />
             <div
               v-else
@@ -175,6 +223,11 @@ onMounted(loadGachas);
             <div
               class="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/5"
             ></div>
+            <span
+              class="absolute right-1.5 top-1.5 rounded-full border border-white/20 bg-[#071421]/75 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-white/85 backdrop-blur-sm"
+            >
+              {{ gacha.category === "event" ? "Event" : "Gacha" }}
+            </span>
             <span
               v-if="selectedIndex === index"
               class="absolute bottom-1.5 left-2 rounded-full bg-cyan-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-950"
@@ -191,7 +244,7 @@ onMounted(loadGachas);
         <Transition name="gacha-focus" mode="out-in">
           <div
             v-if="selectedGacha"
-            :key="selectedGacha.id"
+            :key="itemKey(selectedGacha)"
             class="mb-2 w-full max-w-[720px] p-3 sm:mb-8 sm:ml-5 sm:p-6 lg:ml-10"
           >
             <img
@@ -204,12 +257,16 @@ onMounted(loadGachas);
               class="inline-flex max-w-full flex-col rounded-2xl border border-white/20 bg-[#0b1727]/60 px-4 py-3 shadow-2xl backdrop-blur-md sm:px-5 sm:py-4"
             >
               <div
-                class="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200"
+                class="mb-1 flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200"
               >
                 <span
                   class="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.9)]"
                 ></span>
                 {{ availabilityLabel }}
+                <span class="text-white/35">/</span>
+                <span class="text-white/75">
+                  {{ selectedGacha.category === "event" ? "Event Gacha" : "Gacha" }}
+                </span>
               </div>
               <h1
                 class="line-clamp-2 text-xl font-black leading-tight drop-shadow-md sm:text-2xl lg:text-3xl"
@@ -232,7 +289,7 @@ onMounted(loadGachas);
     </section>
 
     <section v-else class="absolute inset-0 z-20 flex items-center justify-center text-white/75">
-      No recent gachas were found.
+      No recent gachas or events were found.
     </section>
   </main>
 </template>

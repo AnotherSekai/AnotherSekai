@@ -13,14 +13,25 @@ interface UpstreamGacha {
   endAt: number;
 }
 
+interface UpstreamEvent {
+  id: number;
+  name: string;
+  assetbundleName: string;
+  startAt: number;
+  aggregateAt: number;
+}
+
+export type GachaCategory = "gacha" | "event";
+
 export interface GachaSummary extends UpstreamGacha {
+  category: GachaCategory;
   bannerUrl: string;
   logoUrl: string;
   backgroundUrl: string;
 }
 
-const LATEST_GACHA_LIMIT = 10;
-const GACHA_TAIL_BYTES = 1024 * 1024;
+const LATEST_ITEM_LIMIT = 10;
+const CATALOG_TAIL_BYTES = 1024 * 1024;
 const PARSE_CANDIDATE_LIMIT = 32;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -82,21 +93,31 @@ const isUpstreamGacha = (value: unknown): value is UpstreamGacha => {
   );
 };
 
-const fetchGachaCatalogTail = async (region: Region) => {
-  const response = await fetch(
-    `${getDatabaseRoot(region)}/gachas.json`,
-    {
-      headers: {
-        Range: `bytes=-${GACHA_TAIL_BYTES}`,
-        "Accept-Encoding": "identity",
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    },
+const isUpstreamEvent = (value: unknown): value is UpstreamEvent => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<UpstreamEvent>;
+
+  return (
+    typeof candidate.id === "number" &&
+    typeof candidate.name === "string" &&
+    typeof candidate.assetbundleName === "string" &&
+    typeof candidate.startAt === "number" &&
+    typeof candidate.aggregateAt === "number"
   );
+};
+
+const fetchCatalogTail = async (region: Region, fileName: "gachas" | "events") => {
+  const response = await fetch(`${getDatabaseRoot(region)}/${fileName}.json`, {
+    headers: {
+      Range: `bytes=-${CATALOG_TAIL_BYTES}`,
+      "Accept-Encoding": "identity",
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
 
   if (response.status !== 206 || !response.headers.get("content-range")?.startsWith("bytes ")) {
     await response.body?.cancel();
-    throw new Error("The upstream source did not honor the bounded gacha request.");
+    throw new Error(`The upstream source did not honor the bounded ${fileName} request.`);
   }
 
   return response.text();
@@ -124,34 +145,59 @@ const fetchBackgroundUrl = async (gacha: UpstreamGacha, region: Region) => {
 
 const loadLatestGachas = async (region: Region): Promise<GachaSummary[]> => {
   const now = Date.now();
-  const source = await fetchGachaCatalogTail(region);
-  const latest = parseObjectsFromJsonTail(source, PARSE_CANDIDATE_LIMIT)
+  const [gachaSource, eventSource] = await Promise.all([
+    fetchCatalogTail(region, "gachas"),
+    fetchCatalogTail(region, "events"),
+  ]);
+  const latestGachas = parseObjectsFromJsonTail(gachaSource, PARSE_CANDIDATE_LIMIT)
     .filter(isUpstreamGacha)
     .filter((gacha) => gacha.startAt <= now)
     .sort((left, right) => right.startAt - left.startAt || right.id - left.id)
-    .slice(0, LATEST_GACHA_LIMIT);
+    .slice(0, LATEST_ITEM_LIMIT);
+  const latestEvents = parseObjectsFromJsonTail(eventSource, PARSE_CANDIDATE_LIMIT)
+    .filter(isUpstreamEvent)
+    .filter((event) => event.startAt <= now)
+    .sort((left, right) => right.startAt - left.startAt || right.id - left.id)
+    .slice(0, LATEST_ITEM_LIMIT);
 
-  if (latest.length < LATEST_GACHA_LIMIT) {
-    throw new Error("The bounded response did not contain ten recent gachas.");
+  if (latestGachas.length < LATEST_ITEM_LIMIT || latestEvents.length < LATEST_ITEM_LIMIT) {
+    throw new Error("The bounded responses did not contain enough recent gachas and events.");
   }
 
-  return Promise.all(
-    latest.map(async (gacha) => {
+  const gachas = await Promise.all(
+    latestGachas.map(async (gacha): Promise<GachaSummary> => {
       const assetRoot = getPublicAssetRoot(region);
       const bannerUrl = `${assetRoot}/home/banner/banner_gacha${gacha.id}/banner_gacha${gacha.id}.webp`;
       const backgroundUrl = await fetchBackgroundUrl(gacha, region).catch(() => "");
 
       return {
-        id: gacha.id,
-        name: gacha.name,
-        assetbundleName: gacha.assetbundleName,
-        startAt: gacha.startAt,
-        endAt: gacha.endAt,
+        ...gacha,
+        category: "gacha",
         bannerUrl,
         logoUrl: `${assetRoot}/gacha/${gacha.assetbundleName}/logo/logo.webp`,
         backgroundUrl: backgroundUrl || bannerUrl,
       };
     }),
+  );
+  const events = latestEvents.map((event): GachaSummary => {
+    const assetRoot = getPublicAssetRoot(region);
+    const backgroundUrl = `${assetRoot}/event/${event.assetbundleName}/screen/bg.webp`;
+
+    return {
+      id: event.id,
+      name: event.name,
+      assetbundleName: event.assetbundleName,
+      startAt: event.startAt,
+      endAt: event.aggregateAt,
+      category: "event",
+      bannerUrl: backgroundUrl,
+      logoUrl: `${assetRoot}/event/${event.assetbundleName}/logo/logo.webp`,
+      backgroundUrl,
+    };
+  });
+
+  return [...gachas, ...events].sort(
+    (left, right) => right.startAt - left.startAt || right.id - left.id,
   );
 };
 
